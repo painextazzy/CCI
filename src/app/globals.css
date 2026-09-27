@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  --font-sans: "Plus Jakarta Sans", sans-serif;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+  --color-teal-900: #134e4a;
+  --color-teal-950: #042f2e;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-corporate-navy: #0f172a;
+  --color-corporate-slate: #334155;
+  --color-corporate-soft: #f8fafc;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  color: #0f172a;
+  background-color: #fbfdfd;
+  overflow-x: hidden;
+}
+
+.hero-split-bg {
+  clip-path: polygon(18% 0%, 100% 0%, 100% 100%, 0% 100%);
+}
+
+@media (max-width: 1024px) {
+  .hero-split-bg {
+    clip-path: none;
+  }
+}
+
+.subtle-glass {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
 }
