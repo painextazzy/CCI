@@ -17,8 +17,8 @@ export default function Header() {
             className="h-9 w-9 object-contain group-hover:scale-105 transition-transform"
             priority
           />
-          <span className="text-2xl font-extrabold tracking-tight text-corporate-navy group-hover:text-teal-700 transition-colors">
-            Haute<span className="text-teal-600">matsiatra</span>
+          <span className="text-xl font-extrabold tracking-tight text-corporate-navy group-hover:text-teal-700 transition-colors">
+            B2B<span className="text-teal-600"> CONNECT</span>
           </span>
         </Link>
 

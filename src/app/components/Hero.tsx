@@ -5,16 +5,21 @@ export default function Hero() {
   return (
     <section
       id="accueil"
-      className="relative pt-28 pb-16 lg:pt-36 lg:pb-32 overflow-hidden"
+      className="relative pt-28 pb-16 lg:pt-32 lg:pb-24 overflow-hidden"
     >
+      {/* Fond diagonal teal */}
       <div className="absolute right-0 top-0 bottom-0 w-full lg:w-1/2 -z-10 pointer-events-none">
         <div className="hero-split-bg w-full h-full bg-gradient-to-br from-teal-600 via-teal-700 to-teal-900 opacity-95" />
         <div className="absolute top-1/4 right-8 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
       </div>
 
+      {/* Ligne verticale fine */}
+      <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent -z-10" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          <div className="lg:col-span-6 pt-4 lg:pt-0 z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-start">
+          {/* Texte + boutons à gauche */}
+          <div className="lg:col-span-6 z-10 lg:pt-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200/70 text-teal-800 text-xs font-semibold uppercase tracking-wider mb-6">
               <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
               Plateforme Officielle Réseau CCI
@@ -33,34 +38,50 @@ export default function Hero() {
               sécurité avec des partenaires solvables et vérifiés sous 24h.
             </p>
 
+            {/* Boutons visibles dès l'ouverture */}
             <div className="flex flex-wrap items-center gap-4">
               <Link
                 href="#opportunites"
-                className="px-7 py-3.5 rounded-full bg-teal-600 text-white font-semibold text-sm hover:bg-teal-700 shadow-lg shadow-teal-600/30 hover:shadow-teal-700/40 transition duration-200"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-teal-600 text-white font-semibold text-sm hover:bg-teal-700 shadow-lg shadow-teal-600/30 hover:shadow-teal-700/40 transition duration-200"
               >
                 Explorer les opportunités
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </Link>
+
               <Link
                 href="#fonctionnement"
-                className="px-7 py-3.5 rounded-full bg-white text-slate-700 font-semibold text-sm border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition duration-200"
+                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-white text-slate-700 font-semibold text-sm border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition duration-200"
               >
                 Rejoindre le réseau
               </Link>
             </div>
           </div>
 
-          <div className="lg:col-span-6 relative flex justify-center lg:justify-end">
-            <div className="relative w-full max-w-md lg:max-w-none">
-              <div className="relative z-10 overflow-hidden rounded-3xl shadow-2xl border-4 border-white/40 aspect-[4/3] sm:aspect-[5/4] lg:aspect-[4/3] max-w-lg ml-auto">
+          {/* Image à droite — remontée plus haut */}
+          <div className="lg:col-span-6 relative flex justify-center lg:justify-end self-start lg:-mt-2">
+            <div className="relative w-full max-w-2xl">
+              <div className="relative z-10 overflow-hidden rounded-3xl shadow-2xl border-4 border-white/60 aspect-[4/3] sm:aspect-[3/4] lg:aspect-[4/4]">
                 <Image
-                  src="https://lh3.googleusercontent.com/aida/AEtjO1Xlojcs_oewnHSKWptRO08jY4kM4M-oM2VLNjMtWDJRZ58veuuCes-ToOdigGdhmC8K3OeZipuv4ABn-52OLZ-FAcdU7SD8rfOn3LC4dIZMtagoHqS_wznsD_-FIspBzk1KI8L3xMRBLxgaLHn0ULDCgKd1jfyctWrdkMDsFmB-LUZPYI1Kw9ydqzERCr72sx5VEIc1OC4HxXfuy4o25hUcGuwfoJ8k_aCrHtffg0auHLg52cKg6sr9EZKO"
-                  alt="Dirigeants d'entreprise collaborant via la plateforme CCI B2B Connect"
+                  src="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=90"
+                  alt="Signature d'un contrat entre deux entreprises partenaires"
                   fill
+                  sizes="(max-width: 768px) 80vw, (max-width: 1024px) 50vw, 600px"
                   className="object-cover object-center"
                   priority
-                  unoptimized
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-teal-950/40 via-transparent to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-teal-950/30 via-transparent to-transparent" />
               </div>
             </div>
           </div>
