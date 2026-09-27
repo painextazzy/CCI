@@ -27,7 +27,7 @@ export default function Hero() {
 
             <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-corporate-navy tracking-tight leading-[1.15] mb-6">
               Développez Votre Réseau B2B{" "}
-              <span className="text-teal-600 underline decoration-teal-300/60 decoration-wavy decoration-2 underline-offset-8">
+              <span className="text-teal-600">
                 Régional &amp; International
               </span>
             </h1>
@@ -69,8 +69,8 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Image à droite — remontée plus haut */}
-          <div className="lg:col-span-6 relative flex justify-center lg:justify-end self-start lg:-mt-2">
+          {/* Image à droite — décalée plus à droite */}
+          <div className="lg:col-span-6 relative flex justify-center lg:justify-end self-start lg:-mt-2 lg:-mr-8 xl:-mr-16">
             <div className="relative w-full max-w-2xl">
               <div className="relative z-10 overflow-hidden rounded-3xl shadow-2xl border-4 border-white/60 aspect-[4/3] sm:aspect-[3/4] lg:aspect-[4/4]">
                 <Image

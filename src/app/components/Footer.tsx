@@ -10,7 +10,7 @@ export default function Footer() {
           <div className="md:col-span-4">
             <Link href="#accueil" className="inline-flex items-center mb-4">
               <Image
-                src="/logo-white.png"
+                src="/logo.png"
                 alt="CCI B2B Connect"
                 width={160}
                 height={40}
