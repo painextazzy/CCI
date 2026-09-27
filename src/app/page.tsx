@@ -2,7 +2,7 @@ import Header from "./components/Header";
 import Hero from "./components/Hero";
 import SummaryBar from "./components/SummaryBar";
 import About from "./components/About";
-import Metrics from "./components/Metrics";
+import HowItWorks from "./components/HowItWorks"; 
 import Services from "./components/Services";
 import Contact from "./components/Contact";
 import Footer from "./components/Footer";
@@ -17,6 +17,7 @@ export default function Home() {
         
         
         <Services />
+               <HowItWorks />  
         <About />
         <Contact />
       </main>
