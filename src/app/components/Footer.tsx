@@ -19,7 +19,7 @@ export default function Footer() {
             </Link>
             <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-6">
               Le réseau officiel d&apos;intermédiation B2B piloté par les
-              Chambres de Commerce et d&apos;Industrie de France. Facilitateur
+              Chambres de Commerce et d&apos;Industrie de Haute Matsiatra. Facilitateur
               de confiance pour le développement des PME et ETI territoriales.
             </p>
             <div className="text-xs text-teal-400 font-medium">
