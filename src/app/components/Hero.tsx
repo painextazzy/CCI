@@ -5,44 +5,47 @@ export default function Hero() {
   return (
     <section
       id="accueil"
-      className="relative pt-28 pb-16 lg:pt-32 lg:pb-24 overflow-hidden"
+      className="relative pt-24 pb-12 sm:pt-28 sm:pb-16 lg:pt-32 lg:pb-24 overflow-hidden"
     >
-      {/* Fond diagonal teal */}
+      {/* Fond diagonal teal — adapté mobile */}
       <div className="absolute right-0 top-0 bottom-0 w-full lg:w-1/2 -z-10 pointer-events-none">
         <div className="hero-split-bg w-full h-full bg-gradient-to-br from-teal-600 via-teal-700 to-teal-900 opacity-95" />
-        <div className="absolute top-1/4 right-8 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 right-8 w-40 h-40 sm:w-60 sm:h-60 lg:w-80 lg:h-80 bg-teal-400/10 rounded-full blur-3xl pointer-events-none" />
       </div>
 
-      {/* Ligne verticale fine */}
+      {/* Ligne verticale — desktop uniquement */}
       <div className="hidden lg:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-slate-200 to-transparent -z-10" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-start">
-          {/* Texte + boutons à gauche */}
-          <div className="lg:col-span-6 z-10 lg:pt-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200/70 text-teal-800 text-xs font-semibold uppercase tracking-wider mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-12 lg:gap-8 items-start">
+          {/* Colonne texte */}
+          <div className="lg:col-span-6 z-10 lg:pt-4 text-center lg:text-left">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200/70 text-teal-800 text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-5 sm:mb-6">
               <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
               Plateforme Officielle Réseau CCI
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-corporate-navy tracking-tight leading-[1.15] mb-6">
+            {/* Titre */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[52px] font-extrabold text-corporate-navy tracking-tight leading-[1.15] mb-5 sm:mb-6">
               Développez Votre Réseau B2B{" "}
               <span className="text-teal-600">
                 Régional &amp; International
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mb-9">
+            {/* Paragraphe */}
+            <p className="text-sm sm:text-base lg:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-7 sm:mb-9">
               Accédez à la communauté d&apos;entreprises qualifiées, certifiées
               par les Chambres de Commerce et d&apos;Industrie. Échangez en toute
               sécurité avec des partenaires solvables et vérifiés sous 24h.
             </p>
 
-            {/* Boutons visibles dès l'ouverture */}
-            <div className="flex flex-wrap items-center gap-4">
+            {/* Boutons */}
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4">
               <Link
                 href="#opportunites"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-teal-600 text-white font-semibold text-sm hover:bg-teal-700 shadow-lg shadow-teal-600/30 hover:shadow-teal-700/40 transition duration-200"
+                className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full bg-teal-600 text-white font-semibold text-sm hover:bg-teal-700 shadow-lg shadow-teal-600/30 hover:shadow-teal-700/40 transition duration-200"
               >
                 Explorer les opportunités
                 <svg
@@ -62,22 +65,22 @@ export default function Hero() {
 
               <Link
                 href="#fonctionnement"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-white text-slate-700 font-semibold text-sm border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition duration-200"
+                className="inline-flex items-center justify-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full bg-white text-slate-700 font-semibold text-sm border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition duration-200"
               >
                 Rejoindre le réseau
               </Link>
             </div>
           </div>
 
-          {/* Image à droite — décalée plus à droite */}
-          <div className="lg:col-span-6 relative flex justify-center lg:justify-end self-start lg:-mt-2 lg:-mr-8 xl:-mr-16">
-            <div className="relative w-full max-w-2xl">
-              <div className="relative z-10 overflow-hidden rounded-3xl shadow-2xl border-4 border-white/60 aspect-[4/3] sm:aspect-[3/4] lg:aspect-[4/4]">
+          {/* Colonne image */}
+          <div className="lg:col-span-6 relative flex justify-center lg:justify-end self-start lg:-mt-2">
+            <div className="relative w-full max-w-md sm:max-w-lg lg:max-w-2xl">
+              <div className="relative z-10 overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl border-4 border-white/60 aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/4]">
                 <Image
                   src="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=90"
                   alt="Signature d'un contrat entre deux entreprises partenaires"
                   fill
-                  sizes="(max-width: 768px) 80vw, (max-width: 1024px) 50vw, 600px"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 600px"
                   className="object-cover object-center"
                   priority
                 />
