@@ -41,3 +41,13 @@ body {
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(12px);
 }
+/* Diagonal geometric split on hero background */
+.hero-split-bg {
+  clip-path: polygon(18% 0%, 100% 0%, 100% 100%, 0% 100%);
+}
+
+@media (max-width: 1024px) {
+  .hero-split-bg {
+    clip-path: none;
+  }
+}

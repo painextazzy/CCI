@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import Reveal from "./Reveal";
 
 type Service = {
   title: string;
@@ -86,7 +87,7 @@ const extraServices: Service[] = [
 
 function ServiceCard({ title, description, href, icon }: Service) {
   return (
-    <div className="bg-white rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 flex flex-col justify-between group">
+    <div className="bg-white rounded-3xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 flex flex-col justify-between group h-full">
       <div>
         <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mb-6 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-200">
           <svg
@@ -123,7 +124,8 @@ export default function Services() {
       className="py-24 bg-gradient-to-b from-[#fbfdfd] to-[#f2faf8]"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-16">
+        {/* En-tête */}
+        <Reveal variant="fade-up" className="text-center max-w-2xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 mb-3">
             <span className="w-2 h-2 rounded-full bg-teal-600" />
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -137,38 +139,48 @@ export default function Services() {
             Des modules consulaires conçus pour accélérer vos contrats
             commerciaux en éliminant les intermédiaires non certifiés.
           </p>
-        </div>
+        </Reveal>
 
+        {/* Rangée 1 — 3 services principaux */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {services.map((s) => (
-            <ServiceCard key={s.title} {...s} />
+          {services.map((s, i) => (
+            <Reveal key={s.title} variant="fade-up" delay={i * 120}>
+              <ServiceCard {...s} />
+            </Reveal>
           ))}
         </div>
 
+        {/* Rangée 2 — CTA + 2 services bonus */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-gradient-to-tr from-teal-700 to-teal-800 rounded-3xl p-8 text-white flex flex-col justify-between shadow-lg shadow-teal-800/10">
-            <div>
-              <h4 className="text-xl font-bold mb-2">
-                Explorer Tous les Services
-              </h4>
-              <p className="text-teal-100 text-xs leading-relaxed">
-                Consultez le catalogue exhaustif des prestations
-                d&apos;accompagnement export, cession et reprise
-                d&apos;entreprise de votre CCI régionale.
-              </p>
+          {/* Carte CTA (slide depuis la gauche) */}
+          <Reveal variant="slide-left" delay={0} duration={800}>
+            <div className="bg-gradient-to-tr from-teal-700 to-teal-800 rounded-3xl p-8 text-white flex flex-col justify-between shadow-lg shadow-teal-800/10 h-full">
+              <div>
+                <h4 className="text-xl font-bold mb-2">
+                  Explorer Tous les Services
+                </h4>
+                <p className="text-teal-100 text-xs leading-relaxed">
+                  Consultez le catalogue exhaustif des prestations
+                  d&apos;accompagnement export, cession et reprise
+                  d&apos;entreprise de votre CCI régionale.
+                </p>
+              </div>
+              <div className="mt-6">
+                <Link
+                  href="#catalogue"
+                  className="inline-block bg-white text-teal-800 font-bold text-xs px-5 py-2.5 rounded-full hover:bg-teal-50 transition shadow-sm"
+                >
+                  Accéder au catalogue complet
+                </Link>
+              </div>
             </div>
-            <div className="mt-6">
-              <Link
-                href="#catalogue"
-                className="inline-block bg-white text-teal-800 font-bold text-xs px-5 py-2.5 rounded-full hover:bg-teal-50 transition shadow-sm"
-              >
-                Accéder au catalogue complet
-              </Link>
-            </div>
-          </div>
+          </Reveal>
 
-          {extraServices.map((s) => (
-            <ServiceCard key={s.title} {...s} />
+          {/* Services bonus (fade-up en cascade) */}
+          {extraServices.map((s, i) => (
+            <Reveal key={s.title} variant="fade-up" delay={150 + i * 120}>
+              <ServiceCard {...s} />
+            </Reveal>
           ))}
         </div>
       </div>

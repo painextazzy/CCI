@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Reveal from "./Reveal";
 
 export default function FAQ() {
   const faqs = [
@@ -36,7 +37,7 @@ export default function FAQ() {
     <section className="py-24 bg-white border-t border-slate-100">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* En-tête */}
-        <div className="text-center mb-14">
+        <Reveal variant="fade-up" className="text-center mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200/70 text-teal-800 text-xs font-semibold uppercase tracking-wider mb-4">
             <span className="w-2 h-2 rounded-full bg-teal-600" />
             Questions fréquentes
@@ -48,72 +49,73 @@ export default function FAQ() {
             Retrouvez les réponses aux questions les plus posées par les
             entreprises de la région.
           </p>
-        </div>
+        </Reveal>
 
         {/* Accordéon */}
         <div className="space-y-3">
           {faqs.map((faq, i) => {
             const isOpen = openIndex === i;
             return (
-              <div
-                key={i}
-                className={`rounded-2xl border transition-all duration-200 ${
-                  isOpen
-                    ? "bg-teal-50/40 border-teal-200"
-                    : "bg-white border-slate-200 hover:border-teal-200"
-                }`}
-              >
-                <button
-                  onClick={() => setOpenIndex(isOpen ? null : i)}
-                  className="w-full flex items-center justify-between gap-4 text-left px-6 py-5"
-                  aria-expanded={isOpen}
-                >
-                  <span className="text-sm sm:text-base font-bold text-corporate-navy pr-4">
-                    {faq.q}
-                  </span>
-                  <span
-                    className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
-                      isOpen
-                        ? "bg-teal-600 text-white rotate-45"
-                        : "bg-teal-50 text-teal-700"
-                    }`}
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        d="M12 5v14M5 12h14"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-
+              <Reveal key={i} variant="fade-up" delay={i * 80} duration={600}>
                 <div
-                  className={`grid transition-all duration-300 ease-in-out ${
+                  className={`rounded-2xl border transition-all duration-200 ${
                     isOpen
-                      ? "grid-rows-[1fr] opacity-100"
-                      : "grid-rows-[0fr] opacity-0"
+                      ? "bg-teal-50/40 border-teal-200"
+                      : "bg-white border-slate-200 hover:border-teal-200"
                   }`}
                 >
-                  <div className="overflow-hidden">
-                    <p className="text-sm text-slate-600 leading-relaxed px-6 pb-5">
-                      {faq.a}
-                    </p>
+                  <button
+                    onClick={() => setOpenIndex(isOpen ? null : i)}
+                    className="w-full flex items-center justify-between gap-4 text-left px-6 py-5"
+                    aria-expanded={isOpen}
+                  >
+                    <span className="text-sm sm:text-base font-bold text-corporate-navy pr-4">
+                      {faq.q}
+                    </span>
+                    <span
+                      className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
+                        isOpen
+                          ? "bg-teal-600 text-white rotate-45"
+                          : "bg-teal-50 text-teal-700"
+                      }`}
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          d="M12 5v14M5 12h14"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  </button>
+
+                  <div
+                    className={`grid transition-all duration-300 ease-in-out ${
+                      isOpen
+                        ? "grid-rows-[1fr] opacity-100"
+                        : "grid-rows-[0fr] opacity-0"
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <p className="text-sm text-slate-600 leading-relaxed px-6 pb-5">
+                        {faq.a}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Reveal>
             );
           })}
         </div>
 
         {/* CTA bas */}
-        <div className="mt-12 text-center">
+        <Reveal variant="fade-up" delay={600} className="mt-12 text-center">
           <p className="text-xs text-slate-500 mb-4">
             Vous ne trouvez pas votre réponse ?
           </p>
@@ -124,7 +126,7 @@ export default function FAQ() {
             Contacter un conseiller CCI
             <span>→</span>
           </a>
-        </div>
+        </Reveal>
       </div>
     </section>
   );
