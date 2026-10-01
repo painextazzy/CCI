@@ -2,15 +2,110 @@
 
 import DragDropUpload from "../components/DragDropUpload";
 
+// Nettoyage des caractères spéciaux autorisant lettres (avec accents), chiffres, espaces, apostrophes et tirets
+export const sanitizeText = (val: string): string => {
+  return val.replace(/[^a-zA-Z0-9àâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ\s'\.-]/g, "");
+};
+
+// Validation Email strict
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email.trim());
+};
+
+// Téléphone : Max 13 chiffres (accepte le + au début ou aucun +)
+export const isValidPhone = (phone: string): boolean => {
+  const cleanPhone = phone.trim();
+  const phoneRegex = /^\+?[0-9]{1,13}$/;
+  const digitsOnly = cleanPhone.replace(/\D/g, "");
+  return phoneRegex.test(cleanPhone) && digitsOnly.length <= 13 && digitsOnly.length >= 8;
+};
+
+// NIF et STAT : Exactement 10 chiffres et valeur supérieure à 0
+export const isValid10Digits = (val: string): boolean => {
+  const clean = val.trim();
+  if (!/^\d{10}$/.test(clean)) return false;
+  return parseInt(clean, 10) > 0;
+};
+
+// Vérification globale de la validité d'une étape (À utiliser dans le composant Parent avant de passer à l'étape suivante)
+export const validateStep = (
+  step: number,
+  formData: any,
+  files?: { kbisFile?: File | null }
+): { isValid: boolean; errors: Record<string, string> } => {
+  const errors: Record<string, string> = {};
+
+  if (step === 1) {
+    if (!formData.companyType) errors.companyType = "Veuillez sélectionner un type d'établissement.";
+    if (!formData.companyName?.trim()) errors.companyName = "La raison sociale est requise.";
+    if (!isValid10Digits(formData.nif || "")) errors.nif = "Le NIF doit comporter exactement 10 chiffres et être > 0.";
+    if (!isValid10Digits(formData.stat || "")) errors.stat = "Le STAT doit comporter exactement 10 chiffres et être > 0.";
+    if (!formData.address?.trim()) errors.address = "L'adresse du siège social est requise.";
+  }
+
+  if (step === 2) {
+    if (!formData.managerName?.trim()) errors.managerName = "Le nom du dirigeant est requis.";
+    if (!formData.managerRole) errors.managerRole = "Le rôle est requis.";
+    if (!isValidPhone(formData.phone || "")) errors.phone = "Numéro invalide (max 13 chiffres, + optionnel).";
+  }
+
+  if (step === 3) {
+    if (!isValidEmail(formData.email || "")) errors.email = "Format d'adresse e-mail invalide.";
+    if (!formData.password || formData.password.length < 6) errors.password = "Le mot de passe doit faire au moins 6 caractères.";
+    if (formData.password !== formData.confirmPassword) errors.confirmPassword = "Les mots de passe ne correspondent pas.";
+  }
+
+  if (step === 4) {
+    if (formData.companyType === "external" && !files?.kbisFile) {
+      errors.kbisFile = "Le justificatif Kbis est obligatoire pour les entreprises externes.";
+    }
+  }
+
+  if (step === 5) {
+    if (!formData.sector) errors.sector = "Le secteur d'activité est requis.";
+    if (formData.sector === "AUTRE" && !formData.sectorOther?.trim()) errors.sectorOther = "Veuillez préciser votre secteur.";
+    if (!formData.needsDescription?.trim()) errors.needsDescription = "La description est requise.";
+  }
+
+  if (step === 6) {
+    if (!formData.agreedTerms) errors.agreedTerms = "Vous devez accepter les conditions d'utilisation.";
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+  };
+};
+
+// INTERFACES & PROPS
 interface StepProps {
   formData: any;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
   handleTypeSelect?: (type: "internal" | "external") => void;
   handleFileSelect?: (name: "kbisFile" | "cinFile", file: File | null) => void;
   companyType?: "internal" | "external";
+  errors?: Record<string, string>;
 }
 
-export function Step1({ formData, handleInputChange, handleTypeSelect, companyType }: StepProps) {
+
+// COMPOSANTS DES ÉTAPES DU FORMULAIRE
+export function Step1({ formData, handleInputChange, handleTypeSelect, companyType, errors }: StepProps) {
+  // Handler pour assainir la saisie texte et limiter les entrées numériques
+  const onChangeWithSanitize = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    let cleanValue = value;
+
+    if (name === "companyName" || name === "address") {
+      cleanValue = sanitizeText(value);
+    } else if (name === "nif" || name === "stat") {
+      cleanValue = value.replace(/\D/g, "").slice(0, 10);
+    }
+
+    e.target.value = cleanValue;
+    handleInputChange(e);
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -64,6 +159,7 @@ export function Step1({ formData, handleInputChange, handleTypeSelect, companyTy
             </div>
           </div>
         </div>
+        {errors?.companyType && <p className="text-[11px] text-red-500 mt-1">{errors.companyType}</p>}
       </div>
 
       <div>
@@ -75,10 +171,11 @@ export function Step1({ formData, handleInputChange, handleTypeSelect, companyTy
           name="companyName"
           required
           value={formData.companyName}
-          onChange={handleInputChange}
+          onChange={onChangeWithSanitize}
           placeholder="Ex. Nexus Technologies SAS"
           className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
         />
+        {errors?.companyName && <p className="text-[11px] text-red-500 mt-1">{errors.companyName}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -90,11 +187,13 @@ export function Step1({ formData, handleInputChange, handleTypeSelect, companyTy
             type="text"
             name="nif"
             required
+            maxLength={10}
             value={formData.nif}
-            onChange={handleInputChange}
+            onChange={onChangeWithSanitize}
             placeholder="Ex. 3000123456"
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium font-mono focus:bg-white focus:border-teal-500 outline-none"
           />
+          {errors?.nif && <p className="text-[11px] text-red-500 mt-1">{errors.nif}</p>}
         </div>
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
@@ -104,11 +203,13 @@ export function Step1({ formData, handleInputChange, handleTypeSelect, companyTy
             type="text"
             name="stat"
             required
+            maxLength={10}
             value={formData.stat}
-            onChange={handleInputChange}
-            placeholder="Ex. 62011 31 2023 0 00123"
+            onChange={onChangeWithSanitize}
+            placeholder="Ex. 6201131202"
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium font-mono focus:bg-white focus:border-teal-500 outline-none"
           />
+          {errors?.stat && <p className="text-[11px] text-red-500 mt-1">{errors.stat}</p>}
         </div>
       </div>
 
@@ -121,16 +222,34 @@ export function Step1({ formData, handleInputChange, handleTypeSelect, companyTy
           name="address"
           required
           value={formData.address}
-          onChange={handleInputChange}
+          onChange={onChangeWithSanitize}
           placeholder="Ex. Lot II B 12 Ambalapaiso, Fianarantsoa"
           className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
         />
+        {errors?.address && <p className="text-[11px] text-red-500 mt-1">{errors.address}</p>}
       </div>
     </div>
   );
 }
 
-export function Step2({ formData, handleInputChange }: StepProps) {
+export function Step2({ formData, handleInputChange, errors }: StepProps) {
+  const onChangeWithSanitize = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    let cleanValue = value;
+
+    if (name === "managerName") {
+      cleanValue = sanitizeText(value);
+    } else if (name === "phone") {
+      // Conserve uniquement le + initial et les chiffres (max 13 chiffres)
+      const hasPlus = value.startsWith("+");
+      const digits = value.replace(/\D/g, "").slice(0, 13);
+      cleanValue = (hasPlus ? "+" : "") + digits;
+    }
+
+    e.target.value = cleanValue;
+    handleInputChange(e);
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -142,10 +261,11 @@ export function Step2({ formData, handleInputChange }: StepProps) {
           name="managerName"
           required
           value={formData.managerName}
-          onChange={handleInputChange}
+          onChange={onChangeWithSanitize}
           placeholder="Ex. Jean RASOLOFOMANANA"
           className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
         />
+        {errors?.managerName && <p className="text-[11px] text-red-500 mt-1">{errors.managerName}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -164,6 +284,7 @@ export function Step2({ formData, handleInputChange }: StepProps) {
             <option value="Président">Président / Administrateur</option>
             <option value="Représentant Légal">Représentant Légal</option>
           </select>
+          {errors?.managerRole && <p className="text-[11px] text-red-500 mt-1">{errors.managerRole}</p>}
         </div>
 
         <div>
@@ -175,10 +296,11 @@ export function Step2({ formData, handleInputChange }: StepProps) {
             name="phone"
             required
             value={formData.phone}
-            onChange={handleInputChange}
-            placeholder="Ex. +261 34 00 000 00"
+            onChange={onChangeWithSanitize}
+            placeholder="Ex. +261340000000"
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
           />
+          {errors?.phone && <p className="text-[11px] text-red-500 mt-1">{errors.phone}</p>}
         </div>
       </div>
 
@@ -199,7 +321,7 @@ export function Step2({ formData, handleInputChange }: StepProps) {
   );
 }
 
-export function Step3({ formData, handleInputChange }: StepProps) {
+export function Step3({ formData, handleInputChange, errors }: StepProps) {
   return (
     <div className="space-y-4">
       <div>
@@ -215,6 +337,7 @@ export function Step3({ formData, handleInputChange }: StepProps) {
           placeholder="Ex. contact@mon-entreprise.mg"
           className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
         />
+        {errors?.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -231,6 +354,7 @@ export function Step3({ formData, handleInputChange }: StepProps) {
             placeholder="••••••••"
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
           />
+          {errors?.password && <p className="text-[11px] text-red-500 mt-1">{errors.password}</p>}
         </div>
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
@@ -245,13 +369,14 @@ export function Step3({ formData, handleInputChange }: StepProps) {
             placeholder="••••••••"
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
           />
+          {errors?.confirmPassword && <p className="text-[11px] text-red-500 mt-1">{errors.confirmPassword}</p>}
         </div>
       </div>
     </div>
   );
 }
 
-export function Step4({ companyType, handleFileSelect }: StepProps) {
+export function Step4({ companyType, handleFileSelect, errors }: StepProps) {
   return (
     <div className="space-y-4">
       {companyType === "internal" ? (
@@ -274,25 +399,30 @@ export function Step4({ companyType, handleFileSelect }: StepProps) {
           </p>
         </div>
       ) : (
-        <>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-              Extrait Kbis / Registre du Commerce <span className="text-teal-600">*</span>
-            </label>
-            <DragDropUpload
-              accept=".png,.jpg,.jpeg"
-              onFileSelect={(file) => handleFileSelect?.("kbisFile", file)}
-            />
-          </div>
-
-
-        </>
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            Extrait Kbis / Registre du Commerce <span className="text-teal-600">*</span>
+          </label>
+          <DragDropUpload
+            accept=".png,.jpg,.jpeg"
+            onFileSelect={(file) => handleFileSelect?.("kbisFile", file)}
+          />
+          {errors?.kbisFile && <p className="text-[11px] text-red-500 mt-1">{errors.kbisFile}</p>}
+        </div>
       )}
     </div>
   );
 }
 
-export function Step5({ formData, handleInputChange }: StepProps) {
+export function Step5({ formData, handleInputChange, errors }: StepProps) {
+  const onChangeWithSanitize = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    let cleanValue = sanitizeText(value);
+
+    e.target.value = cleanValue;
+    handleInputChange(e);
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -312,6 +442,7 @@ export function Step5({ formData, handleInputChange }: StepProps) {
           <option value="COMMERCE">Commerce de Gros &amp; Distribution</option>
           <option value="AUTRE">Autre (préciser)</option>
         </select>
+        {errors?.sector && <p className="text-[11px] text-red-500 mt-1">{errors.sector}</p>}
       </div>
 
       {formData.sector === "AUTRE" && (
@@ -323,10 +454,11 @@ export function Step5({ formData, handleInputChange }: StepProps) {
             type="text"
             name="sectorOther"
             value={formData.sectorOther}
-            onChange={handleInputChange}
+            onChange={onChangeWithSanitize}
             placeholder="Ex. Énergies renouvelables, Transport & Logistique..."
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
           />
+          {errors?.sectorOther && <p className="text-[11px] text-red-500 mt-1">{errors.sectorOther}</p>}
         </div>
       )}
 
@@ -338,16 +470,17 @@ export function Step5({ formData, handleInputChange }: StepProps) {
           name="needsDescription"
           rows={3}
           value={formData.needsDescription}
-          onChange={handleInputChange}
+          onChange={onChangeWithSanitize}
           placeholder="Décrivez brièvement vos activités principales..."
           className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none resize-none"
         />
+        {errors?.needsDescription && <p className="text-[11px] text-red-500 mt-1">{errors.needsDescription}</p>}
       </div>
     </div>
   );
 }
 
-export function Step6({ formData, handleInputChange }: StepProps) {
+export function Step6({ formData, handleInputChange, errors }: StepProps) {
   return (
     <div className="space-y-4">
       <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2">
@@ -369,6 +502,7 @@ export function Step6({ formData, handleInputChange }: StepProps) {
           J&apos;accepte les conditions d&apos;utilisation et atteste sur l&apos;honneur la véracité des informations fournie.
         </span>
       </label>
+      {errors?.agreedTerms && <p className="text-[11px] text-red-500 mt-1">{errors.agreedTerms}</p>}
     </div>
   );
 }
