@@ -2,12 +2,20 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 export default function AdminHeader() {
   const pathname = usePathname();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Utilisateur connecté
+  const currentUser = {
+    name: "Jean Dupont",
+    role: "Administrateur",
+    email: "admin@cci-matsiatra.mg",
+  };
 
   const navLinks = [
     { label: "Vue d'ensemble", href: "/admin/dashboard" },
@@ -28,23 +36,17 @@ export default function AdminHeader() {
   }, []);
 
   return (
-    <header className="flex flex-col md:flex-row items-center justify-between gap-4 pb-2 border-b border-teal-50/60 w-full">
-      {/* Brand Logo (Identique à la page d'accueil) */}
+    <header className="flex flex-col md:flex-row items-center justify-between gap-4 pb-2 border-b border-emerald-100/60 w-full">
+      {/* Brand Logo avec Image */}
       <Link href="/admin/dashboard" className="flex items-center gap-3 w-full md:w-auto">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-teal-800 to-teal-500 flex items-center justify-center text-white shadow-md shadow-teal-700/20">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" viewBox="0 0 24 24">
-            <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1" />
-            <path d="M18 8h4a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4" />
-            <circle cx="8" cy="12" r="2" />
-          </svg>
-        </div>
+    
         <div className="flex items-baseline gap-1">
           <span className="text-xl font-extrabold tracking-tight text-slate-900">CCI</span>
-          <span className="text-xl font-bold tracking-tight text-teal-700">B2B Connect</span>
+          <span className="text-xl font-bold tracking-tight text-emerald-600">B2B Connect</span>
         </div>
       </Link>
 
-      {/* Navigation Links */}
+      {/* Navigation Links avec bouton actif Vert (bg-emerald-600) */}
       <nav className="flex items-center bg-white/80 p-1.5 rounded-full shadow-xs border text-xs sm:text-sm font-semibold text-slate-600 border-slate-200">
         {navLinks.map((link) => {
           const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -54,8 +56,8 @@ export default function AdminHeader() {
               href={link.href}
               className={`px-4 py-2 rounded-full transition-all duration-200 ${
                 isActive
-                  ? "bg-slate-900 text-white font-medium shadow-xs"
-                  : "hover:text-teal-700 text-slate-600"
+                  ? "bg-emerald-600 text-white font-medium shadow-xs"
+                  : "hover:text-emerald-600 text-slate-600"
               }`}
             >
               {link.label}
@@ -69,18 +71,18 @@ export default function AdminHeader() {
         {/* 1. Icône Message */}
         <button
           aria-label="Messages"
-          className="w-10 h-10 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-teal-600 hover:border-teal-300 transition shadow-xs relative"
+          className="w-10 h-10 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-emerald-600 hover:border-emerald-300 transition shadow-xs relative"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
-          <span className="absolute top-2 right-2 w-2 h-2 bg-teal-500 rounded-full ring-2 ring-white" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white" />
         </button>
 
         {/* 2. Icône Notification */}
         <button
           aria-label="Notifications"
-          className="w-10 h-10 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-teal-600 hover:border-teal-300 transition shadow-xs relative"
+          className="w-10 h-10 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-emerald-600 hover:border-emerald-300 transition shadow-xs relative"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -89,21 +91,36 @@ export default function AdminHeader() {
           <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white animate-pulse" />
         </button>
 
-        {/* 3. Icône Utilisateur avec Menu Déroulant (Dropdown) */}
+        {/* 3. Utilisateur Connecté avec Icône & Nom à côté + Menu Déroulant */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="w-10 h-10 rounded-full bg-slate-900 text-teal-400 font-extrabold text-xs flex items-center justify-center ring-2 ring-teal-200 shadow-xs hover:ring-teal-400 transition"
+            className="flex items-center gap-2.5 bg-slate-50 hover:bg-slate-100 p-1.5 pr-3 rounded-full border border-slate-200/80 transition shadow-2xs group"
           >
-            CCI
+            {/* Avatar / Icône Profil */}
+            <div className="relative w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs group-hover:bg-emerald-700 transition">
+              {currentUser.name.charAt(0)}
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-white rounded-full"></span>
+            </div>
+
+            {/* Nom & Rôle à côté de l'icône */}
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold text-slate-900 leading-tight">{currentUser.name}</span>
+              <span className="text-[10px] font-medium text-slate-500 leading-tight">{currentUser.role}</span>
+            </div>
+
+            {/* Flèche Dropdown */}
+            <svg className="w-3.5 h-3.5 text-slate-400 ml-1" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </button>
 
-          {/* Menu Déroulant */}
+          {/* Menu Déroulant (Dropdown) */}
           {isProfileOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-xs text-slate-700 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-xs text-slate-700 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-4 py-2 border-b border-slate-100">
-                <p className="font-bold text-slate-900">Admin CCI</p>
-                <p className="text-[10px] text-slate-400">admin@cci-matsiatra.mg</p>
+                <p className="font-bold text-slate-900">{currentUser.name}</p>
+                <p className="text-[10px] text-slate-400">{currentUser.email}</p>
               </div>
 
               <Link
@@ -134,7 +151,7 @@ export default function AdminHeader() {
               <button
                 onClick={() => {
                   setIsProfileOpen(false);
-                  // Action de déconnexion ici
+                  // Action de déconnexion
                 }}
                 className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-rose-50 text-rose-600 transition font-medium text-left"
               >
