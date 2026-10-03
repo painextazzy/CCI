@@ -56,7 +56,7 @@ export default function AdminHeader() {
               href={link.href}
               className={`px-4 py-2 rounded-full transition-all duration-200 ${
                 isActive
-                  ? "bg-emerald-600 text-white font-medium shadow-xs"
+                  ? "bg-black text-white font-medium shadow-xs"
                   : "hover:text-emerald-600 text-slate-600"
               }`}
             >
