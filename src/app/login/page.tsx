@@ -3,11 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 // Importez votre image depuis le dossier public/ ou assets (ex: public/images/b2b-hero.jpg)
 
 
 export default function LoginPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -26,7 +28,17 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL
+        ?.trim()
+        .replace(/\/+$/, "");
+      if (!configuredApiUrl) {
+        throw new Error("La variable NEXT_PUBLIC_API_URL n'est pas configurée.");
+      }
+
+      const apiRoot = /\/api$/i.test(configuredApiUrl)
+        ? configuredApiUrl
+        : `${configuredApiUrl}/api`;
+      const res = await fetch(`${apiRoot}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -38,10 +50,28 @@ export default function LoginPage() {
         throw new Error(data.message || "Identifiants incorrects.");
       }
 
-      localStorage.setItem("token", data.access_token);
-      window.location.href = "/dashboard";
-    } catch (err: any) {
-      setError(err.message || "Une erreur est survenue lors de la connexion.");
+      const role = data.user?.role;
+      if (!data.accessToken || !role) {
+        throw new Error("Réponse de connexion invalide.");
+      }
+
+      let destination: string;
+      if (role === "COMPANY") {
+        destination = "/opportunites";
+      } else if (role === "ADMIN" || role === "CCI_STAFF") {
+        destination = "/admin";
+      } else {
+        throw new Error("Ce type de compte ne peut pas accéder à la plateforme.");
+      }
+
+      localStorage.setItem("token", data.accessToken);
+      router.push(destination);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue lors de la connexion."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -198,7 +228,7 @@ export default function LoginPage() {
               {/* Lien Créer un compte */}
               <div className="text-center pt-2">
                 <p className="text-sm text-slate-500 font-medium">
-                  Vous n'avez pas de compte ?{" "}
+                  Vous n&apos;avez pas de compte ?{" "}
                   <Link
                     href="/register"
                     className="font-semibold text-[#0d9488] hover:underline transition-colors"

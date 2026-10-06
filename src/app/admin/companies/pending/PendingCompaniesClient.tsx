@@ -24,12 +24,15 @@ export default function PendingCompaniesClient({
   const [rejectingCompany, setRejectingCompany] =
     useState<CompanyRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [processingAction, setProcessingAction] = useState<
+    "approve" | "reject" | null
+  >(null);
   const [detailCompany, setDetailCompany] = useState<CompanyRequest | null>(
     null
   );
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const actionInProgressRef = useRef(false);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -69,6 +72,9 @@ export default function PendingCompaniesClient({
 
   // Action pour approuver (Mise à jour en base de données via API)
   const handleApprove = async (id: string) => {
+    if (actionInProgressRef.current) return;
+    actionInProgressRef.current = true;
+    setProcessingAction("approve");
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/companies/${id}/status`,
@@ -95,15 +101,19 @@ export default function PendingCompaniesClient({
     } catch (error) {
       console.error("Erreur lors de l'approbation", error);
       alert("Impossible d'approuver l'entreprise en base de données.");
+    } finally {
+      actionInProgressRef.current = false;
+      setProcessingAction(null);
     }
   };
 
   // Action pour rejeter avec un motif (Mise à jour en base de données via API)
   const handleRejectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rejectingCompany) return;
+    if (!rejectingCompany || actionInProgressRef.current) return;
 
-    setIsSubmitting(true);
+    actionInProgressRef.current = true;
+    setProcessingAction("reject");
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/companies/${rejectingCompany.id}/status`,
@@ -127,15 +137,7 @@ export default function PendingCompaniesClient({
       }
 
       setCompanies((prev) =>
-        prev.map((c) =>
-          c.id === rejectingCompany.id
-            ? {
-                ...c,
-                verificationStatus: "REJECTED",
-                rejectionReason: rejectionReason.trim(),
-              }
-            : c
-        )
+        prev.filter((company) => company.id !== rejectingCompany.id)
       );
       setRejectingCompany(null);
       setRejectionReason("");
@@ -148,7 +150,8 @@ export default function PendingCompaniesClient({
           : "Impossible de refuser l'entreprise."
       );
     } finally {
-      setIsSubmitting(false);
+      actionInProgressRef.current = false;
+      setProcessingAction(null);
     }
   };
 
@@ -394,10 +397,15 @@ export default function PendingCompaniesClient({
                             <>
                               <button
                                 onClick={() => handleApprove(item.id)}
-                                className="w-full px-4 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
+                                disabled={processingAction !== null}
+                                className="w-full px-4 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <svg
-                                  className="w-4 h-4 text-emerald-500"
+                                  className={`w-4 h-4 text-emerald-500 ${
+                                    processingAction === "approve"
+                                      ? "animate-spin"
+                                      : ""
+                                  }`}
                                   fill="none"
                                   stroke="currentColor"
                                   strokeWidth="2"
@@ -409,7 +417,9 @@ export default function PendingCompaniesClient({
                                     d="M5 13l4 4L19 7"
                                   />
                                 </svg>
-                                Accepter
+                                {processingAction === "approve"
+                                  ? "Acceptation..."
+                                  : "Accepter"}
                               </button>
 
                               <button
@@ -417,7 +427,8 @@ export default function PendingCompaniesClient({
                                   setRejectingCompany(item);
                                   setActiveMenuId(null);
                                 }}
-                                className="w-full px-4 py-2 text-xs font-medium text-pink-600 hover:bg-pink-50 flex items-center gap-2 border-t border-slate-100 mt-1 pt-1"
+                                disabled={processingAction !== null}
+                                className="w-full px-4 py-2 text-xs font-medium text-pink-600 hover:bg-pink-50 flex items-center gap-2 border-t border-slate-100 mt-1 pt-1 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <svg
                                   className="w-4 h-4 text-pink-500"
@@ -462,6 +473,7 @@ export default function PendingCompaniesClient({
           company={detailCompany}
           onClose={() => setDetailCompany(null)}
           onApprove={handleApprove}
+          processingAction={processingAction}
           onReject={(c) => {
             setRejectingCompany(c);
             setDetailCompany(null);
@@ -500,16 +512,19 @@ export default function PendingCompaniesClient({
                     setRejectingCompany(null);
                     setRejectionReason("");
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                  disabled={processingAction !== null}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={processingAction !== null}
                   className="px-4 py-2 rounded-xl text-xs font-semibold bg-pink-600 hover:bg-pink-700 text-white transition shadow-sm disabled:opacity-50"
                 >
-                  {isSubmitting ? "Enregistrement..." : "Confirmer le refus"}
+                  {processingAction === "reject"
+                    ? "Refus en cours..."
+                    : "Confirmer le refus"}
                 </button>
               </div>
             </form>

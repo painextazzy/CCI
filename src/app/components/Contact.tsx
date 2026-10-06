@@ -31,7 +31,7 @@ export default function Contact() {
                 </label>
                 <input
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                  placeholder="Jean Dupont"
+                  placeholder="votre nom ici"
                   required
                   type="text"
                 />
@@ -42,7 +42,7 @@ export default function Contact() {
                 </label>
                 <input
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-600 transition"
-                  placeholder="j.dupont@entreprise.fr"
+                  placeholder="example@gmail.com"
                   required
                   type="email"
                 />

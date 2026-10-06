@@ -1,18 +1,23 @@
-"use client";
+import AdminHeader from "../components/AdminHeader";
+import AdminSidebar from "../components/AdminSidebar";
 
-import AdminHeader from "../components//AdminHeader";
-
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="bg-[#e9f2f2] text-slate-800 font-sans min-h-screen p-4 sm:p-6 lg:p-8 flex flex-col items-center antialiased">
-      <div className="w-full max-w-[1400px] flex flex-col gap-6">
-        {/* Navbar séparée sans boîte parent */}
-        <AdminHeader />
+    <div className="min-h-screen bg-[#eaf6f694] p-4 sm:p-6">
+      {/* Header en fixed */}
+      <AdminHeader />
 
-        {/* Zone de contenu principale */}
-        <main className="w-full flex-1">
-          {children}
-        </main>
+      {/* Conteneur global avec un padding-top (pt-24 ou pt-28) pour éviter que le header fixe ne cache le contenu */}
+      <div className="max-w-[1600px] mx-auto pt-20 sm:pt-24">
+        {/* Grille : Sidebar + Contenu */}
+        <div className="flex gap-4 sm:gap-5">
+         
+          <main className="flex-1 min-w-0">{children}</main>
+        </div>
       </div>
     </div>
   );

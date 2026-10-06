@@ -28,6 +28,7 @@ interface CompanyDetailModalProps {
   company: CompanyRequest;
   onClose: () => void;
   onApprove: (id: string) => void;
+  processingAction: "approve" | "reject" | null;
   onReject: (company: CompanyRequest) => void;
 }
 
@@ -35,6 +36,7 @@ export default function CompanyDetailModal({
   company,
   onClose,
   onApprove,
+  processingAction,
   onReject,
 }: CompanyDetailModalProps) {
   return (
@@ -254,7 +256,8 @@ export default function CompanyDetailModal({
           <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-slate-100 bg-slate-50/60">
             <button
               onClick={() => onReject(company)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 transition"
+              disabled={processingAction !== null}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white border border-pink-200 text-pink-600 hover:bg-pink-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg
                 className="w-3.5 h-3.5"
@@ -273,22 +276,50 @@ export default function CompanyDetailModal({
             </button>
             <button
               onClick={() => onApprove(company.id)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm"
+              disabled={processingAction !== null}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M5 13l4 4L19 7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Approuver
+              {processingAction === "approve" ? (
+                <>
+                  <svg
+                    className="w-3.5 h-3.5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Approbation...
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      d="M5 13l4 4L19 7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Approuver
+                </>
+              )}
             </button>
           </div>
         )}

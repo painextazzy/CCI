@@ -24,7 +24,7 @@ export default function Partners() {
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-teal-600 mb-2">
             Nos partenaires
           </p>
-      
+
           <p className="text-xs sm:text-sm text-slate-500 max-w-2xl mx-auto">
             B2B connect s&apos;appuie sur les institutions publiques, les
             organisations patronales et les partenaires financiers qui
@@ -47,7 +47,7 @@ export default function Partners() {
                 alt={partner.name}
                 width={200}
                 height={96}
-                className="object-contain max-h-24 w-auto"
+                className="object-contain max-h-24 w-auto h-auto"
                 title={partner.name}
               />
             </Reveal>
