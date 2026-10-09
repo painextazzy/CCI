@@ -57,7 +57,7 @@ export default function LoginPage() {
 
       let destination: string;
       if (role === "COMPANY") {
-        destination = "/opportunites";
+        destination = "/acteur/opportunites";
       } else if (role === "ADMIN" || role === "CCI_STAFF") {
         destination = "/admin";
       } else {
