@@ -251,7 +251,7 @@ export default function MessagesPage() {
 
   return (
     <div className="fixed inset-0 top-20 bg-slate-100 flex items-center justify-center p-4 overflow-hidden">
-      <div className="w-full h-full max-w-[1600px] bg-white rounded-2xl border border-slate-200 shadow-lg flex overflow-hidden">
+      <div className="w-full h-full max-w-[1600px] bg-white rounded-4xl border border-slate-200 shadow-lg flex overflow-hidden">
         {/* ═══════════════════════════════════════════════
             LISTE DES CONVERSATIONS
             ═══════════════════════════════════════════════ */}
