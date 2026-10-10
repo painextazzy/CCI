@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Search,
   Clock,
@@ -10,199 +11,236 @@ import {
   ChevronDown,
   Megaphone,
   Search as SearchIcon,
+  PlusCircle,
+  Loader2,
 } from "lucide-react";
 
-type AnnonceType = "Offre" | "Demande";
+// Alignment exact avec votre backend NestJS / TypeORM
+export type AnnonceType = "OFFRE" | "DEMANDE";
 
-interface Opportunity {
-  id: number;
-  company: string;
-  role: string;
-  location: string;
-  email?: string;
-  phone?: string;
-  category: string;
-  type: string;
-  annonceType: AnnonceType;
-  timeAgo: string;
-  createdAt: string;
-  status: string;
+export interface Opportunity {
+  id: string | number;
   title: string;
+  category: string; // Ex: 'Sous-traitance', 'Distribution', 'Achat groupé'
   description: string;
-  avatar: string;
+  annonceType: AnnonceType;
+  status: "OPEN" | "IN_PROGRESS" | "CLOSED";
+  specificLocation?: string;
+  deadline?: string;
+  createdAt: string;
+  timeAgo?: string;
+  company: {
+    id: string;
+    name: string;
+    activitySector?: string;
+    address?: string;
+    logoUrl?: string;
+  };
 }
 
-export default function PageOpportunites() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("ALL");
-  const [selectedType, setSelectedType] = useState("ALL");
-  const [selectedAnnonceType, setSelectedAnnonceType] = useState<
-    "Offre" | "Demande" | "RECENT"
-  >("RECENT");
-  const [selectedStatus, setSelectedStatus] = useState("ALL");
-
-  const categories = [
-    "Agro-business",
-    "Export & Commerce",
-    "Artisanat & Création",
-    "Tourisme & Hôtellerie",
-    "Industrie & Manufacture",
-    "Énergie & Tech",
-  ];
-
-  const opportunities: Opportunity[] = [
-    {
-      id: 1,
-      company: "AgriBio Madagascar",
-      role: "Producteur Certifié | Thé d'altitude",
-      location: "BP 1420, Fianarantsoa",
-      email: "contact@agribio.mg",
-      category: "Agro-business",
-      type: "Sous-traitance",
-      annonceType: "Demande",
-      timeAgo: "Il y a 2h",
-      createdAt: "2025-06-16T10:00:00Z",
-      status: "Ouvert",
-      title: "Recherche sous-traitant transformation de thé",
-      description:
-        "Mise en place d'un partenariat industriel pour l'usinage, le séchage contrôlé et le conditionnement hermétique de nos récoltes de thé d'altitude aux normes internationales d'exportation.",
-      avatar:
+// Données de secours (Mocks) pour le développement
+const MOCK_OPPORTUNITIES: Opportunity[] = [
+  {
+    id: "1",
+    title: "Recherche sous-traitant transformation de thé",
+    category: "Sous-traitance",
+    description:
+      "Mise en place d'un partenariat industriel pour l'usinage, le séchage contrôlé et le conditionnement hermétique de nos récoltes de thé d'altitude aux normes internationales d'exportation.",
+    annonceType: "DEMANDE",
+    status: "OPEN",
+    specificLocation: "Fianarantsoa",
+    createdAt: "2026-10-10T08:00:00Z",
+    timeAgo: "Il y a 2h",
+    company: {
+      id: "c1",
+      name: "AgriBio Madagascar",
+      activitySector: "Agro-business",
+      address: "BP 1420, Fianarantsoa",
+      logoUrl:
         "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
     },
-    {
-      id: 2,
-      company: "Bourbon Exporters S.A.",
-      role: "Négoce & Export International | Café d'origine",
-      location: "RN7 Ambalavao, Madagascar",
-      phone: "+261 34 12 345 67",
-      category: "Export & Commerce",
-      type: "Partenariat export",
-      annonceType: "Offre",
-      timeAgo: "Il y a 5h",
-      createdAt: "2025-06-16T07:00:00Z",
-      status: "En cours",
-      title: "Partenaire distribution café Bourbon – Europe",
-      description:
-        "Recherche d'un distributeur B2B spécialisé dans l'épicerie fine et torréfacteurs en France et Allemagne pour l'écoulement annuel de 120 tonnes de café bourbon pointu labellisé.",
-      avatar:
+  },
+  {
+    id: "2",
+    title: "Partenaire distribution café Bourbon – Europe",
+    category: "Distribution",
+    description:
+      "Recherche d'un distributeur B2B spécialisé dans l'épicerie fine et torréfacteurs en France et Allemagne pour l'écoulement annuel de 120 tonnes de café bourbon pointu labellisé.",
+    annonceType: "OFFRE",
+    status: "IN_PROGRESS",
+    specificLocation: "RN7 Ambalavao",
+    createdAt: "2026-10-10T05:00:00Z",
+    timeAgo: "Il y a 5h",
+    company: {
+      id: "c2",
+      name: "Bourbon Exporters S.A.",
+      activitySector: "Export & Commerce",
+      address: "Ambalavao, Madagascar",
+      logoUrl:
         "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80",
     },
-    {
-      id: 3,
-      company: "Coopérative Tsara Artisans",
-      role: "Groupement d'Artisans Régionaux | Fibres végétales",
-      location: "Village artisanal, Isandra",
-      email: "contact@tsara-artisans.mg",
-      category: "Artisanat & Création",
-      type: "Achat groupé",
-      annonceType: "Demande",
-      timeAgo: "Hier",
-      createdAt: "2025-06-15T14:00:00Z",
-      status: "Ouvert",
-      title: "Fournisseur vannerie pour boutique Antananarivo",
-      description:
-        "Recherche d'artisans vanniers capables d'assurer un approvisionnement régulier en paniers, sets de table et luminaires en fibres de raphia naturelles pour notre enseigne de la capitale.",
-      avatar:
+  },
+  {
+    id: "3",
+    title: "Fournisseur vannerie pour boutique Antananarivo",
+    category: "Achat groupé",
+    description:
+      "Recherche d'artisans vanniers capables d'assurer un approvisionnement régulier en paniers, sets de table et luminaires en fibres de raphia naturelles pour notre enseigne de la capitale.",
+    annonceType: "DEMANDE",
+    status: "OPEN",
+    createdAt: "2026-10-09T14:00:00Z",
+    timeAgo: "Hier",
+    company: {
+      id: "c3",
+      name: "Coopérative Tsara Artisans",
+      activitySector: "Artisanat & Création",
+      address: "Village artisanal, Isandra",
+      logoUrl:
         "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80",
     },
-    {
-      id: 4,
-      company: "Ranomafana EcoTours",
-      role: "Opérateur Tourisme Durable | Hébergement éco",
-      location: "Entrée Parc National, Vohibato",
-      phone: "+261 32 45 789 01",
-      category: "Tourisme & Hôtellerie",
-      type: "Appel d'offres",
-      annonceType: "Offre",
-      timeAgo: "Il y a 1j",
-      createdAt: "2025-06-15T08:00:00Z",
-      status: "En cours",
-      title: "Prestataire écotourisme – Parc Ranomafana",
-      description:
-        "Sélection d'opérateurs réceptifs certifiés pour la création de circuits guidés nocturnes et séjours d'immersion écologique responsables dans la réserve de Ranomafana.",
-      avatar:
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-    },
-    {
-      id: 5,
-      company: "MecaPrecision Océan Indien",
-      role: "Atelier Industriel Homologué | Découpe & mécano-soudure",
-      location: "Zone Industrielle, Antsirabe",
-      email: "contact@mecaprecision.mg",
-      category: "Industrie & Manufacture",
-      type: "Sous-traitance",
-      annonceType: "Offre",
-      timeAgo: "Il y a 2j",
-      createdAt: "2025-06-14T09:00:00Z",
-      status: "Ouvert",
-      title: "Sous-traitant usinage de précision & découpe laser",
-      description:
-        "Recherche d'un atelier partenaire équipé de machines CNC et laser fibre pour la prise en charge d'un surplus de commandes de pièces en acier inoxydable et aluminium industriel.",
-      avatar:
+  },
+  {
+    id: "4",
+    title: "Sous-traitant usinage de précision & découpe laser",
+    category: "Sous-traitance",
+    description:
+      "Recherche d'un atelier partenaire équipé de machines CNC et laser fibre pour la prise en charge d'un surplus de commandes de pièces en acier inoxydable et aluminium industriel.",
+    annonceType: "OFFRE",
+    status: "OPEN",
+    specificLocation: "Zone Industrielle, Antsirabe",
+    createdAt: "2026-10-08T09:00:00Z",
+    timeAgo: "Il y a 2j",
+    company: {
+      id: "c4",
+      name: "MecaPrecision Océan Indien",
+      activitySector: "Industrie & Manufacture",
+      address: "Antsirabe",
+      logoUrl:
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
     },
-    {
-      id: 6,
-      company: "GreenPack Solutions",
-      role: "Fabricant Éco-responsable | Emballages biosourcés",
-      location: "Port Fluvial, Toamasina",
-      email: "contact@greenpack.mg",
-      category: "Énergie & Tech",
-      type: "Achat groupé",
-      annonceType: "Demande",
-      timeAgo: "Il y a 3j",
-      createdAt: "2025-06-13T11:00:00Z",
-      status: "Ouvert",
-      title: "Groupement d'achats emballages écologiques biodégradables",
-      description:
-        "Création d'un consortium inter-entreprises pour l'approvisionnement massif et mutualisé en bioplastiques compostables à base d'amidon de manioc avec tarification dégressive.",
-      avatar:
-        "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
-    },
+  },
+];
+
+export default function PageOpportunites() {
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filtres
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [selectedAnnonceType, setSelectedAnnonceType] = useState<
+    "OFFRE" | "DEMANDE" | "ALL"
+  >("ALL");
+  const [selectedStatus, setSelectedStatus] = useState("ALL");
+
+  // Formatage des catégories uniques (formats de collaboration)
+  const categoriesList = [
+    "Sous-traitance",
+    "Partenariat commercial",
+    "Achat groupé",
+    "Distribution",
+    "Appel d'offres",
+    "Co-développement",
   ];
 
-  const types = [...new Set(opportunities.map((o) => o.type))].sort();
+  // 🔄 Chargement depuis l'API NestJS
+  useEffect(() => {
+    async function fetchAnnouncements() {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("access_token");
 
-  const filteredOpportunities = opportunities
-    .filter((opp) => {
-      const matchesCategory =
-        selectedCategory === "ALL" || opp.category === selectedCategory;
+        const res = await fetch("http://localhost:3000/announcements", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      const matchesSearch =
-        opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        opp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        opp.company.toLowerCase().includes(searchQuery.toLowerCase());
+        if (!res.ok) throw new Error("Impossible de charger les annonces");
 
-      const matchesType = selectedType === "ALL" || opp.type === selectedType;
-      const matchesStatus =
-        selectedStatus === "ALL" || opp.status === selectedStatus;
+        const data = await res.json();
+        
+        // Formater les données de l'API NestJS
+        const formattedData = data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          category: item.category,
+          description: item.description,
+          annonceType: item.type as AnnonceType,
+          status: item.status,
+          specificLocation: item.specificLocation,
+          deadline: item.deadline,
+          createdAt: item.createdAt,
+          timeAgo: "Récemment",
+          company: {
+            id: item.company?.id || "",
+            name: item.company?.name || "Entreprise CCI",
+            activitySector: item.company?.activitySector || "Non spécifié",
+            address: item.company?.address || "Madagascar",
+            logoUrl:
+              item.company?.logoUrl ||
+              "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80",
+          },
+        }));
 
-      let matchesAnnonceType = true;
-      if (selectedAnnonceType === "Offre")
-        matchesAnnonceType = opp.annonceType === "Offre";
-      else if (selectedAnnonceType === "Demande")
-        matchesAnnonceType = opp.annonceType === "Demande";
-      // "RECENT" → pas de filtre, juste un tri
-
-      return (
-        matchesCategory &&
-        matchesSearch &&
-        matchesType &&
-        matchesStatus &&
-        matchesAnnonceType
-      );
-    })
-    .sort((a, b) => {
-      if (selectedAnnonceType === "RECENT") {
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        setOpportunities(formattedData);
+      } catch (err) {
+        console.warn("API NestJS indisponible, chargement des mocks:", err);
+        setOpportunities(MOCK_OPPORTUNITIES);
+      } finally {
+        setLoading(false);
       }
-      return 0;
-    });
+    }
+
+    fetchAnnouncements();
+  }, []);
+
+  // 🔍 Filtrage combiné
+  const filteredOpportunities = opportunities.filter((opp) => {
+    const matchesCategory =
+      selectedCategory === "ALL" || opp.category === selectedCategory;
+
+    const matchesSearch =
+      opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      opp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      opp.company.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus =
+      selectedStatus === "ALL" || opp.status === selectedStatus;
+
+    const matchesAnnonceType =
+      selectedAnnonceType === "ALL" || opp.annonceType === selectedAnnonceType;
+
+    return (
+      matchesCategory &&
+      matchesSearch &&
+      matchesStatus &&
+      matchesAnnonceType
+    );
+  });
 
   return (
-    <div className="space-y-5 pt-4">
+    <div className="space-y-6 pt-4 max-w-7xl mx-auto px-4 sm:px-6">
+      {/* En-tête avec bouton de création */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-xs">
+        <div>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            Opportunités B2B & Partenariats
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Explorez les offres et demandes de collaboration au sein du réseau CCI.
+          </p>
+        </div>
+
+        <Link
+          href="/acteur/annonces/nouvelle"
+          className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-95 shrink-0"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>Publier une annonce</span>
+        </Link>
+      </div>
+
       {/* Barre de recherche + filtres */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
         {/* Recherche */}
@@ -213,29 +251,27 @@ export default function PageOpportunites() {
           />
           <input
             type="text"
-            placeholder="Rechercher une opportunité..."
+            placeholder="Rechercher une opportunité, un mot-clé..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-full bg-white border border-slate-200 text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition shadow-sm"
+            className="w-full pl-11 pr-4 py-3 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition shadow-xs"
           />
         </div>
 
         {/* Filtres */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Filtre Annonce */}
+          {/* Filtre Type (Offre / Demande) */}
           <div className="relative">
             <select
               value={selectedAnnonceType}
               onChange={(e) =>
-                setSelectedAnnonceType(
-                  e.target.value as "Offre" | "Demande" | "RECENT"
-                )
+                setSelectedAnnonceType(e.target.value as "OFFRE" | "DEMANDE" | "ALL")
               }
-              className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-sm"
+              className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-xs"
             >
-              <option value="RECENT">Les plus récents</option>
-              <option value="Demande">Demandes</option>
-              <option value="Offre">Offres</option>
+              <option value="ALL">Tous les types (Offres & Demandes)</option>
+              <option value="DEMANDE">Demandes uniquement</option>
+              <option value="OFFRE">Offres uniquement</option>
             </select>
             <ChevronDown
               className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
@@ -243,37 +279,17 @@ export default function PageOpportunites() {
             />
           </div>
 
-          {/* Filtre Secteur */}
+          {/* Filtre Format de collaboration / Catégorie */}
           <div className="relative">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-sm"
+              className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-xs"
             >
-              <option value="ALL">Tous les secteurs</option>
-              {categories.map((cat) => (
+              <option value="ALL">Toutes les collaborations</option>
+              {categoriesList.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-              strokeWidth={2.5}
-            />
-          </div>
-
-          {/* Filtre Type */}
-          <div className="relative">
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-sm"
-            >
-              <option value="ALL">Tous les types</option>
-              {types.map((type) => (
-                <option key={type} value={type}>
-                  {type}
                 </option>
               ))}
             </select>
@@ -288,11 +304,12 @@ export default function PageOpportunites() {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-sm"
+              className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-xs"
             >
               <option value="ALL">Tous les statuts</option>
-              <option value="Ouvert">Ouvert</option>
-              <option value="En cours">En cours</option>
+              <option value="OPEN">Ouvert</option>
+              <option value="IN_PROGRESS">En cours</option>
+              <option value="CLOSED">Clôturé</option>
             </select>
             <ChevronDown
               className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
@@ -302,8 +319,8 @@ export default function PageOpportunites() {
         </div>
       </div>
 
-      {/* Compteur */}
-      <div className="flex items-center gap-2 px-2">
+      {/* Compteur d'opportunités */}
+      <div className="flex items-center justify-between px-2">
         <p className="text-xs text-slate-500 font-medium">
           <span className="font-bold text-slate-900">
             {filteredOpportunities.length}
@@ -313,30 +330,40 @@ export default function PageOpportunites() {
         </p>
       </div>
 
-      {/* Grille */}
-      {filteredOpportunities.length > 0 ? (
+      {/* État de chargement */}
+      {loading ? (
+        <div className="py-20 flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+          <p className="text-xs font-medium text-slate-500">
+            Chargement des opportunités B2B...
+          </p>
+        </div>
+      ) : filteredOpportunities.length > 0 ? (
+        /* Grille des annonces */
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {filteredOpportunities.map((item) => {
-            const isDemande = item.annonceType === "Demande";
+            const isDemande = item.annonceType === "DEMANDE";
+            const locationDisplay =
+              item.specificLocation || item.company.address || "Madagascar";
 
             return (
               <article
                 key={item.id}
                 className="bg-white rounded-[24px] border border-slate-100 p-5 shadow-[0_4px_20px_-8px_rgba(15,23,42,0.06)] hover:shadow-lg hover:border-emerald-200 transition-all duration-300 flex flex-col group"
               >
-                {/* En-tête */}
+                {/* En-tête : Info Entreprise & Statut */}
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     <img
-                      alt={item.company}
-                      className="w-11 h-11 rounded-full object-cover ring-2 ring-white shadow-md shrink-0"
-                      src={item.avatar}
+                      alt={item.company.name}
+                      className="w-11 h-11 rounded-full object-cover ring-2 ring-white shadow-xs shrink-0"
+                      src={item.company.logoUrl}
                     />
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <h3 className="text-sm font-bold text-slate-900 truncate">
-                          {item.company}
+                          {item.company.name}
                         </h3>
                         <CheckCircle2
                           className="w-3.5 h-3.5 text-emerald-500 shrink-0"
@@ -346,12 +373,12 @@ export default function PageOpportunites() {
                       </div>
 
                       <p className="text-[11px] text-slate-500 truncate">
-                        {item.role}
+                        {item.company.activitySector}
                       </p>
 
                       <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
                         <MapPin className="w-3 h-3 shrink-0" strokeWidth={2} />
-                        <span className="truncate">{item.location}</span>
+                        <span className="truncate">{locationDisplay}</span>
                       </div>
                     </div>
                   </div>
@@ -359,51 +386,65 @@ export default function PageOpportunites() {
                   <div className="shrink-0 flex flex-col items-end gap-1">
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                        item.status === "Ouvert"
+                        item.status === "OPEN"
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : "bg-amber-50 text-amber-700 border border-amber-200"
                       }`}
                     >
-                      {item.status}
+                      {item.status === "OPEN" ? "Ouvert" : "En cours"}
                     </span>
                     <span className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
                       <Clock className="w-3 h-3" strokeWidth={2} />
-                      {item.timeAgo}
+                      {item.timeAgo || "Récemment"}
                     </span>
                   </div>
                 </div>
 
-                {/* Corps */}
+                {/* Corps de l'annonce */}
                 <div className="flex-1 space-y-3 mb-4">
                   <div className="flex items-start gap-2.5">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-slate-100 text-slate-500">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-slate-100 text-slate-600">
                       {isDemande ? (
                         <SearchIcon className="w-4 h-4" strokeWidth={2.5} />
                       ) : (
                         <Megaphone className="w-4 h-4" strokeWidth={2.5} />
                       )}
                     </div>
+
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      {/* Integrated Badges: Type (Offre/Demande) + Collaboration Format */}
+                      <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                        <span
+                          className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            isDemande
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
                           {item.annonceType}
                         </span>
+
+                        {/* Format de Collaboration / Catégorie */}
+                        <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">
+                          {item.category}
+                        </span>
                       </div>
+
                       <h2 className="text-base font-bold text-slate-900 tracking-tight leading-snug group-hover:text-emerald-700 transition-colors cursor-pointer line-clamp-2">
                         {item.title}
                       </h2>
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">
+                  <p className="text-xs text-slate-500 leading-relaxed line-clamp-3 pl-10">
                     {item.description}
                   </p>
                 </div>
 
-                {/* Pied */}
+                {/* Pied de carte : CTA */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 mt-auto">
-                  <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all">
-                    Manifester mon intérêt
+                  <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all active:scale-95">
+                    <span>Manifester mon intérêt</span>
                     <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
                   </button>
                 </div>
@@ -412,9 +453,10 @@ export default function PageOpportunites() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center">
-          <p className="text-slate-400 text-sm font-medium">
-            Aucune opportunité ne correspond à votre recherche.
+        /* État vide */
+        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center shadow-xs">
+          <p className="text-slate-500 text-xs font-semibold">
+            Aucune opportunité ne correspond à vos critères de recherche.
           </p>
         </div>
       )}
