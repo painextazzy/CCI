@@ -38,92 +38,10 @@ export interface Opportunity {
   };
 }
 
-// Données de secours (Mocks) pour le développement
-const MOCK_OPPORTUNITIES: Opportunity[] = [
-  {
-    id: "1",
-    title: "Recherche sous-traitant transformation de thé",
-    category: "Sous-traitance",
-    description:
-      "Mise en place d'un partenariat industriel pour l'usinage, le séchage contrôlé et le conditionnement hermétique de nos récoltes de thé d'altitude aux normes internationales d'exportation.",
-    annonceType: "DEMANDE",
-    status: "OPEN",
-    specificLocation: "Fianarantsoa",
-    createdAt: "2026-10-10T08:00:00Z",
-    timeAgo: "Il y a 2h",
-    company: {
-      id: "c1",
-      name: "AgriBio Madagascar",
-      activitySector: "Agro-business",
-      address: "BP 1420, Fianarantsoa",
-      logoUrl:
-        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
-    },
-  },
-  {
-    id: "2",
-    title: "Partenaire distribution café Bourbon – Europe",
-    category: "Distribution",
-    description:
-      "Recherche d'un distributeur B2B spécialisé dans l'épicerie fine et torréfacteurs en France et Allemagne pour l'écoulement annuel de 120 tonnes de café bourbon pointu labellisé.",
-    annonceType: "OFFRE",
-    status: "IN_PROGRESS",
-    specificLocation: "RN7 Ambalavao",
-    createdAt: "2026-10-10T05:00:00Z",
-    timeAgo: "Il y a 5h",
-    company: {
-      id: "c2",
-      name: "Bourbon Exporters S.A.",
-      activitySector: "Export & Commerce",
-      address: "Ambalavao, Madagascar",
-      logoUrl:
-        "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80",
-    },
-  },
-  {
-    id: "3",
-    title: "Fournisseur vannerie pour boutique Antananarivo",
-    category: "Achat groupé",
-    description:
-      "Recherche d'artisans vanniers capables d'assurer un approvisionnement régulier en paniers, sets de table et luminaires en fibres de raphia naturelles pour notre enseigne de la capitale.",
-    annonceType: "DEMANDE",
-    status: "OPEN",
-    createdAt: "2026-10-09T14:00:00Z",
-    timeAgo: "Hier",
-    company: {
-      id: "c3",
-      name: "Coopérative Tsara Artisans",
-      activitySector: "Artisanat & Création",
-      address: "Village artisanal, Isandra",
-      logoUrl:
-        "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80",
-    },
-  },
-  {
-    id: "4",
-    title: "Sous-traitant usinage de précision & découpe laser",
-    category: "Sous-traitance",
-    description:
-      "Recherche d'un atelier partenaire équipé de machines CNC et laser fibre pour la prise en charge d'un surplus de commandes de pièces en acier inoxydable et aluminium industriel.",
-    annonceType: "OFFRE",
-    status: "OPEN",
-    specificLocation: "Zone Industrielle, Antsirabe",
-    createdAt: "2026-10-08T09:00:00Z",
-    timeAgo: "Il y a 2j",
-    company: {
-      id: "c4",
-      name: "MecaPrecision Océan Indien",
-      activitySector: "Industrie & Manufacture",
-      address: "Antsirabe",
-      logoUrl:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-    },
-  },
-];
-
 export default function PageOpportunites() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filtres
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,39 +61,45 @@ export default function PageOpportunites() {
     "Co-développement",
   ];
 
-  // 🔄 Chargement depuis l'API NestJS
+  // 🔄 Chargement des données réelles depuis l'API NestJS
   useEffect(() => {
     async function fetchAnnouncements() {
       try {
         setLoading(true);
-        const token = localStorage.getItem("access_token");
+        setError(null);
 
-        const res = await fetch("http://localhost:3000/announcements", {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+        const res = await fetch(`${apiUrl}/announcements`, {
+          method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
+          credentials: "include", // Indispensable pour transmettre le cookie HttpOnly
         });
 
-        if (!res.ok) throw new Error("Impossible de charger les annonces");
+        if (!res.ok) {
+          throw new Error("Impossible de charger les annonces depuis la base de données.");
+        }
 
         const data = await res.json();
         
-        // Formater les données de l'API NestJS
+        // Formater les données de l'API NestJS en mappant correctement les champs de la BDD
         const formattedData = data.map((item: any) => ({
           id: item.id,
           title: item.title,
           category: item.category,
           description: item.description,
           annonceType: item.type as AnnonceType,
-          status: item.status,
+          status: item.status || "OPEN",
           specificLocation: item.specificLocation,
           deadline: item.deadline,
           createdAt: item.createdAt,
           timeAgo: "Récemment",
           company: {
             id: item.company?.id || "",
-            name: item.company?.name || "Entreprise CCI",
-            activitySector: item.company?.activitySector || "Non spécifié",
+            name: item.company?.companyName || "Entreprise CCI", // Correspond à companyName dans l'entité Company
+            activitySector: item.company?.sector || "Non spécifié", // Correspond à sector dans l'entité Company
             address: item.company?.address || "Madagascar",
             logoUrl:
               item.company?.logoUrl ||
@@ -184,9 +108,9 @@ export default function PageOpportunites() {
         }));
 
         setOpportunities(formattedData);
-      } catch (err) {
-        console.warn("API NestJS indisponible, chargement des mocks:", err);
-        setOpportunities(MOCK_OPPORTUNITIES);
+      } catch (err: any) {
+        console.error("Erreur de chargement des annonces :", err);
+        setError(err.message || "Erreur de connexion au serveur.");
       } finally {
         setLoading(false);
       }
@@ -220,7 +144,7 @@ export default function PageOpportunites() {
   });
 
   return (
-    <div className="space-y-6 pt-4 max-w-7xl mx-auto px-4 sm:px-6">
+    <div className="space-y-6 pt-4 max-w-7xl mx-auto px-4 sm:px-6 pb-12">
       {/* En-tête avec bouton de création */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-xs">
         <div>
@@ -319,6 +243,13 @@ export default function PageOpportunites() {
         </div>
       </div>
 
+      {/* Message d'erreur éventuel */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+          {error}
+        </div>
+      )}
+
       {/* Compteur d'opportunités */}
       <div className="flex items-center justify-between px-2">
         <p className="text-xs text-slate-500 font-medium">
@@ -335,7 +266,7 @@ export default function PageOpportunites() {
         <div className="py-20 flex flex-col items-center justify-center gap-3">
           <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
           <p className="text-xs font-medium text-slate-500">
-            Chargement des opportunités B2B...
+            Chargement des opportunités depuis la base de données...
           </p>
         </div>
       ) : filteredOpportunities.length > 0 ? (
@@ -412,7 +343,6 @@ export default function PageOpportunites() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      {/* Integrated Badges: Type (Offre/Demande) + Collaboration Format */}
                       <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                         <span
                           className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${
@@ -424,7 +354,6 @@ export default function PageOpportunites() {
                           {item.annonceType}
                         </span>
 
-                        {/* Format de Collaboration / Catégorie */}
                         <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">
                           {item.category}
                         </span>
@@ -454,10 +383,16 @@ export default function PageOpportunites() {
         </div>
       ) : (
         /* État vide */
-        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center shadow-xs">
+        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center shadow-xs space-y-3">
           <p className="text-slate-500 text-xs font-semibold">
-            Aucune opportunité ne correspond à vos critères de recherche.
+            Aucune opportunité n'a encore été publiée ou ne correspond à vos critères.
           </p>
+          <Link
+            href="/acteur/annonces/nouvelle"
+            className="inline-block text-xs font-bold text-emerald-600 hover:underline"
+          >
+            Publier la première annonce →
+          </Link>
         </div>
       )}
     </div>
