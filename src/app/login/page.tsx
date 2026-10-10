@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { getApiRoot, getRoleHome } from "../lib/auth";
+import { useAuth } from "../providers/AuthProvider";
 
 // Importez votre image depuis le dossier public/ ou assets (ex: public/images/b2b-hero.jpg)
 
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, isLoading: isAuthLoading, setUser } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -17,6 +20,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user && !isAuthLoading) {
+      router.replace(getRoleHome(user.role));
+    }
+  }, [isAuthLoading, router, user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -28,19 +37,10 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL
-        ?.trim()
-        .replace(/\/+$/, "");
-      if (!configuredApiUrl) {
-        throw new Error("La variable NEXT_PUBLIC_API_URL n'est pas configurée.");
-      }
-
-      const apiRoot = /\/api$/i.test(configuredApiUrl)
-        ? configuredApiUrl
-        : `${configuredApiUrl}/api`;
-      const res = await fetch(`${apiRoot}/auth/login`, {
+      const res = await fetch(`${getApiRoot()}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(formData),
       });
 
@@ -51,21 +51,16 @@ export default function LoginPage() {
       }
 
       const role = data.user?.role;
-      if (!data.accessToken || !role) {
+      if (!role) {
         throw new Error("Réponse de connexion invalide.");
       }
 
-      let destination: string;
-      if (role === "COMPANY") {
-        destination = "/acteur/opportunites";
-      } else if (role === "ADMIN" || role === "CCI_STAFF") {
-        destination = "/admin";
-      } else {
+      if (!["COMPANY", "ADMIN", "CCI_STAFF"].includes(role)) {
         throw new Error("Ce type de compte ne peut pas accéder à la plateforme.");
       }
 
-      localStorage.setItem("token", data.accessToken);
-      router.push(destination);
+      setUser(data.user);
+      router.replace(getRoleHome(role));
     } catch (err: unknown) {
       setError(
         err instanceof Error

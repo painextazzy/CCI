@@ -4,16 +4,33 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../providers/AuthProvider";
 
 export default function AdminHeader() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentUser = {
-    name: "Jean Dupont",
-    role: "Administrateur",
-    email: "admin@cci-matsiatra.mg",
+    name: user?.email || "Mon compte",
+    role: user?.role === "ADMIN" ? "Administrateur" : "Agent CCI",
+    email: user?.email || "",
+  };
+
+  const handleLogout = async () => {
+    setLogoutError(null);
+    try {
+      await logout();
+      router.replace("/login");
+    } catch (cause) {
+      setLogoutError(
+        cause instanceof Error ? cause.message : "La déconnexion a échoué."
+      );
+    }
   };
 
   const navLinks = [
@@ -180,8 +197,13 @@ export default function AdminHeader() {
                   Paramètres
                 </Link>
                 <div className="border-t border-slate-100 my-1" />
+                {logoutError && (
+                  <p role="alert" className="px-4 py-2 text-rose-600">
+                    {logoutError}
+                  </p>
+                )}
                 <button
-                  onClick={() => setIsProfileOpen(false)}
+                  onClick={() => void handleLogout()}
                   className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-rose-50 text-rose-600 transition font-medium text-left"
                 >
                   Déconnexion

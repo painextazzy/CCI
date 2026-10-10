@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Step1, Step2, Step3, Step4, Step5, Step6 } from "./RegisterSteps";
+import { getRoleHome } from "../lib/auth";
+import { useAuth } from "../providers/AuthProvider";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [companyType, setCompanyType] = useState<"internal" | "external">("internal");
   const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +45,12 @@ export default function RegisterPage() {
     const redirectTimer = window.setTimeout(() => router.push("/login"), 5000);
     return () => window.clearTimeout(redirectTimer);
   }, [isRegistered, router]);
+
+  useEffect(() => {
+    if (user && !isAuthLoading && !isRegistered) {
+      router.replace(getRoleHome(user.role));
+    }
+  }, [isAuthLoading, isRegistered, router, user]);
 
   const steps = [
     { id: 1, label: "Étape 1", title: "Identité de l'entreprise" },

@@ -3,9 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useAuth } from "../providers/AuthProvider";
+import { getRoleHome } from "../lib/auth";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user } = useAuth();
+  const accountHref = user ? getRoleHome(user.role) : "/login";
 
   const navigation = [
     { label: "Accueil", href: "#accueil" },
@@ -51,29 +55,46 @@ export default function Header() {
 
         {/* CTA desktop */}
         <div className="hidden lg:flex items-center gap-2 sm:gap-3 shrink-0">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 text-[13px] font-semibold text-slate-700 px-4 py-2.5 rounded-full border border-slate-200 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50/60 transition-all duration-200"
-          >
-            Se connecter
-          </Link>
-
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-[13px] font-semibold px-5 py-2.5 rounded-full shadow-md shadow-teal-700/20 hover:shadow-lg hover:shadow-teal-700/30 transition-all duration-200"
-          >
-            S&apos;inscrire
-          </Link>
+          {user ? (
+            <>
+              <span className="max-w-40 truncate text-[12px] font-medium text-slate-600">
+                {user.company?.companyName || user.email}
+              </span>
+              <Link
+                href={accountHref}
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-teal-600 to-teal-700 px-5 py-2.5 text-[13px] font-semibold text-white shadow-md transition-all hover:from-teal-700 hover:to-teal-800"
+              >
+                Mon espace
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-slate-700 px-4 py-2.5 rounded-full border border-slate-200 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50/60 transition-all duration-200"
+              >
+                Se connecter
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-[13px] font-semibold px-5 py-2.5 rounded-full shadow-md shadow-teal-700/20 hover:shadow-lg hover:shadow-teal-700/30 transition-all duration-200"
+              >
+                S&apos;inscrire
+              </Link>
+            </>
+          )}
         </div>
 
         {/* CTA mobile + bouton menu */}
         <div className="flex lg:hidden items-center gap-2 shrink-0">
-          <Link
-            href="/register"
-            className="inline-flex items-center bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-[12px] font-semibold px-4 py-2 rounded-full shadow-md shadow-teal-700/20 transition-all duration-200"
-          >
-            S&apos;inscrire
-          </Link>
+          {!user && (
+            <Link
+              href="/register"
+              className="inline-flex items-center bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white text-[12px] font-semibold px-4 py-2 rounded-full shadow-md shadow-teal-700/20 transition-all duration-200"
+            >
+              S&apos;inscrire
+            </Link>
+          )}
 
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -134,11 +155,11 @@ export default function Header() {
 
           <div className="pt-4 mt-3 border-t border-slate-100">
             <Link
-              href="/login"
+              href={accountHref}
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center justify-center gap-2 w-full text-[14px] font-semibold text-slate-700 px-4 py-3 rounded-full border border-slate-200 hover:border-teal-300 hover:text-teal-700 hover:bg-teal-50/60 transition-all duration-200"
             >
-              Se connecter
+              {user ? user.company?.companyName || user.email : "Se connecter"}
             </Link>
           </div>
         </div>
