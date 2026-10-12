@@ -64,7 +64,7 @@ export default function OpportunitiesPreview() {
             </p>
           </div>
           <Link
-            href="#opportunites"
+            href="/opportunites"
             className="inline-flex items-center gap-2 text-sm font-bold text-teal-700 hover:text-teal-900 transition-colors self-start sm:self-auto"
           >
             Voir toutes les opportunités
@@ -149,7 +149,7 @@ export default function OpportunitiesPreview() {
                   {opp.type}
                 </span>
                 <Link
-                  href="#"
+                  href={`/login?next=${encodeURIComponent("/opportunites")}`}
                   className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:text-teal-900 transition-colors"
                 >
                   Postuler

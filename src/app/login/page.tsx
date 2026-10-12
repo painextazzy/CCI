@@ -9,6 +9,12 @@ import { useAuth } from "../providers/AuthProvider";
 
 // Importez votre image depuis le dossier public/ ou assets (ex: public/images/b2b-hero.jpg)
 
+function getLoginDestination(role: "COMPANY" | "ADMIN" | "CCI_STAFF") {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/") && !next.startsWith("//")
+    ? next
+    : getRoleHome(role);
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +29,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !isAuthLoading) {
-      router.replace(getRoleHome(user.role));
+      router.replace(getLoginDestination(user.role));
     }
   }, [isAuthLoading, router, user]);
 
@@ -60,7 +66,7 @@ export default function LoginPage() {
       }
 
       setUser(data.user);
-      router.replace(getRoleHome(role));
+      router.replace(getLoginDestination(role));
     } catch (err: unknown) {
       setError(
         err instanceof Error

@@ -2,8 +2,22 @@ export type AuthUser = {
   id: string;
   email: string;
   role: "ADMIN" | "CCI_STAFF" | "COMPANY";
+  avatarUrl?: string | null;
+  createdAt?: string;
   company?: {
+    id?: string;
     companyName?: string;
+    companyType?: string;
+    nif?: string;
+    stat?: string;
+    address?: string;
+    managerName?: string;
+    managerRole?: string;
+    phone?: string;
+    website?: string | null;
+    sector?: string;
+    sectorOther?: string | null;
+    verificationStatus?: string;
   } | null;
 };
 

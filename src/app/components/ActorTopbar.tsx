@@ -179,9 +179,18 @@ export default function ActorTopbar() {
               aria-label="Profil"
               className="flex items-center gap-1.5 group"
             >
-              <div className="w-11 h-11 rounded-full bg-linear-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-sm font-bold ring-2 ring-white shadow-sm group-hover:opacity-90 transition">
-                {initials}
-              </div>
+              {user?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  className="h-11 w-11 rounded-full object-cover ring-2 ring-white shadow-sm transition group-hover:opacity-90"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-full bg-linear-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-sm font-bold ring-2 ring-white shadow-sm group-hover:opacity-90 transition">
+                  {initials}
+                </div>
+              )}
 
               <HiOutlineChevronDown
                 className={`w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-transform duration-200 ${
@@ -212,7 +221,7 @@ export default function ActorTopbar() {
                   className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 transition text-slate-700 font-medium"
                 >
                   <HiOutlineCog6Tooth className="w-4 h-4 text-slate-400" />
-                  Paramètres
+                  Paramètres du compte
                 </Link>
 
                 <div className="border-t border-slate-100 my-1" />

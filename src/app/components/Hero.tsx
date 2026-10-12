@@ -34,9 +34,10 @@ export default function Hero() {
             {/* Paragraphe — apparition 3 */}
             <Reveal variant="fade-up" delay={200} duration={700}>
               <p className="text-sm sm:text-base lg:text-lg text-teal-50 lg:text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-6 sm:mb-8">
-                Accédez à la communauté d&apos;entreprises qualifiées, certifiées
-                par les Chambres de Commerce et d&apos;Industrie. Échangez en toute
-                sécurité avec des partenaires solvables et vérifiés sous 24h.
+                Accédez à la communauté d&apos;entreprises qualifiées,
+                certifiées par les Chambres de Commerce et d&apos;Industrie.
+                Échangez en toute sécurité avec des partenaires solvables et
+                vérifiés sous 24h.
               </p>
             </Reveal>
 
@@ -44,7 +45,7 @@ export default function Hero() {
             <Reveal variant="fade-up" delay={300} duration={700}>
               <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4">
                 <Link
-                  href="#opportunites"
+                  href="/opportunites"
                   className="inline-flex items-center justify-center gap-2 px-8 sm:px-7 py-3 sm:py-3.5 rounded-full bg-white lg:bg-teal-600 text-teal-700 lg:text-white font-semibold text-sm hover:bg-teal-50 lg:hover:bg-teal-700 shadow-lg shadow-black/10 lg:shadow-teal-600/30 transition duration-200"
                 >
                   Explorer les opportunités
