@@ -2,7 +2,7 @@
 
 import type { FormEventHandler } from "react";
 import { useState } from "react";
-import { X, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 type ContractProposalModalProps = {
   contractTitle: string;
@@ -17,6 +17,10 @@ type ContractProposalModalProps = {
   onEndDateChange: (value: string) => void;
   onClose: () => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
+  title?: string;
+  submitLabel?: string;
+  isSubmitting?: boolean;
+  error?: string | null;
 };
 
 // ─────────────────────────────────────────────────────────
@@ -35,6 +39,18 @@ const sanitizeText = (value: string): string =>
 const sanitizeAmount = (value: string): string =>
   value.replace(/\D/g, "").slice(0, 12);
 
+const formatFrenchDate = (value: string): string => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value;
+
+  const [, year, month, day] = match;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(Number(year), Number(month) - 1, Number(day)));
+};
+
 export default function ContractProposalModal({
   contractTitle,
   contractDescription,
@@ -48,6 +64,10 @@ export default function ContractProposalModal({
   onEndDateChange,
   onClose,
   onSubmit,
+  title = "Formaliser un accord B2B",
+  submitLabel = "Envoyer au partenaire",
+  isSubmitting = false,
+  error = null,
 }: ContractProposalModalProps) {
   const [errors, setErrors] = useState<{
     title?: string;
@@ -64,8 +84,7 @@ export default function ContractProposalModal({
   };
 
   const handleDescriptionChange = (value: string) => {
-    const cleaned = sanitizeText(value);
-    onDescriptionChange(cleaned);
+    onDescriptionChange(value);
     if (errors.description)
       setErrors((e) => ({ ...e, description: undefined }));
   };
@@ -103,9 +122,6 @@ export default function ContractProposalModal({
     } else if (contractDescription.trim().length < 10) {
       newErrors.description =
         "La description doit contenir au moins 10 caractères.";
-    } else if (/[<>{}[\]\\|`~^=+*%$#@!?_]/.test(contractDescription)) {
-      newErrors.description =
-        "La description contient des caractères non autorisés.";
     }
 
     // Montant : > 10 000 Ar
@@ -140,20 +156,20 @@ export default function ContractProposalModal({
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="relative mb-5 flex items-center justify-center pb-4 border-b border-slate-100">
-          <h3 className="text-base font-extrabold text-slate-900 text-center">
-            Formaliser un accord B2B
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fermer la proposition de contrat"
-            className="absolute right-0 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100"
-          >
-            <X className="h-4 w-4" />
-          </button>
+      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 sm:p-8">
+        <div className="mb-6 border-b border-slate-100 pb-5 text-center">
+          <h3 className="text-lg font-extrabold text-slate-900">{title}</h3>
+          <div className="mx-auto mt-3 h-1 w-12 rounded-full bg-emerald-600" />
         </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700"
+          >
+            {error}
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {/* TITRE */}
@@ -245,7 +261,7 @@ export default function ContractProposalModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-bold text-slate-700">
-                Date début
+                Date de début
               </label>
               <input
                 type="date"
@@ -258,6 +274,11 @@ export default function ContractProposalModal({
                     : "border-slate-200 focus:border-emerald-500"
                 }`}
               />
+              <p className="mt-1 text-[10px] font-medium text-slate-500">
+                {contractStartDate
+                  ? formatFrenchDate(contractStartDate)
+                  : "Sélectionnez une date de début"}
+              </p>
               {errors.startDate && (
                 <p className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-rose-600">
                   <AlertCircle className="w-3 h-3 shrink-0" />
@@ -267,7 +288,7 @@ export default function ContractProposalModal({
             </div>
             <div>
               <label className="mb-1 block text-xs font-bold text-slate-700">
-                Date fin
+                Date de fin
               </label>
               <input
                 type="date"
@@ -280,6 +301,11 @@ export default function ContractProposalModal({
                     : "border-slate-200 focus:border-emerald-500"
                 }`}
               />
+              <p className="mt-1 text-[10px] font-medium text-slate-500">
+                {contractEndDate
+                  ? formatFrenchDate(contractEndDate)
+                  : "Sélectionnez une date de fin"}
+              </p>
               {errors.endDate && (
                 <p className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-rose-600">
                   <AlertCircle className="w-3 h-3 shrink-0" />
@@ -294,15 +320,17 @@ export default function ContractProposalModal({
             <button
               type="button"
               onClick={onClose}
+              disabled={isSubmitting}
               className="flex-1 rounded-xl bg-slate-100 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
+              disabled={isSubmitting}
+              className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
             >
-              Envoyer au partenaire
+              {isSubmitting ? "Enregistrement..." : submitLabel}
             </button>
           </div>
         </form>

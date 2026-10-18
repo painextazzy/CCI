@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Search,
   Clock,
@@ -12,7 +13,45 @@ import {
   Building2,
   Globe,
   Star,
+  Download,
+  FileSignature,
+  LoaderCircle,
+  X,
 } from "lucide-react";
+import { getApiRoot } from "../../lib/auth";
+import { useAuth } from "../../providers/AuthProvider";
+
+interface ContractRecord {
+  id: string;
+  reference: string;
+  status: "ACCEPTED";
+  title: string;
+  description: string;
+  amount: string;
+  startDate: string;
+  endDate: string;
+  senderCompanyName: string;
+  receiverCompanyName: string;
+  senderCompanyId: string;
+  receiverCompanyId: string;
+  receiverSignerName: string;
+  acceptedAt: string;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Date inconnue"
+    : new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(date);
+}
+
+function formatAmount(value: string) {
+  try {
+    return `${new Intl.NumberFormat("fr-FR").format(BigInt(value))} Ar`;
+  } catch {
+    return "Montant indisponible";
+  }
+}
 
 interface Partner {
   id: number;
@@ -34,10 +73,82 @@ interface Partner {
 }
 
 export default function PartenairesPage() {
+  const { user } = useAuth();
+  const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [contractsLoading, setContractsLoading] = useState(true);
+  const [contractsError, setContractsError] = useState<string | null>(null);
+  const [selectedContract, setSelectedContract] =
+    useState<ContractRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedType, setSelectedType] = useState("ALL");
   const [selectedLocation, setSelectedLocation] = useState("ALL");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadContracts() {
+      setContractsLoading(true);
+      setContractsError(null);
+      try {
+        const response = await fetch(`${getApiRoot()}/messages/contracts`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          const result = (await response.json().catch(() => null)) as {
+            message?: string;
+          } | null;
+          throw new Error(
+            result?.message || "Impossible de charger les contrats.",
+          );
+        }
+        const result = (await response.json()) as ContractRecord[];
+        if (active) setContracts(Array.isArray(result) ? result : []);
+      } catch (cause) {
+        if (active) {
+          setContractsError(
+            cause instanceof Error
+              ? cause.message
+              : "Impossible de charger les contrats.",
+          );
+        }
+      } finally {
+        if (active) setContractsLoading(false);
+      }
+    }
+
+    void loadContracts();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const downloadContract = async (contract: ContractRecord) => {
+    try {
+      const response = await fetch(
+        `${getApiRoot()}/messages/contracts/${contract.id}/pdf`,
+        { credentials: "include" },
+      );
+      if (!response.ok) {
+        throw new Error("Le PDF du contrat n’a pas pu être téléchargé.");
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${contract.reference}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (cause) {
+      setContractsError(
+        cause instanceof Error
+          ? cause.message
+          : "Le PDF du contrat n’a pas pu être téléchargé.",
+      );
+    }
+  };
 
   const categories = [
     "Agro-business",
@@ -165,11 +276,16 @@ export default function PartenairesPage() {
     },
   ];
 
-  const types = [
-    ...new Set(partners.map((p) => p.partnerType)),
-  ].sort();
+  const types = [...new Set(partners.map((p) => p.partnerType))].sort();
 
-  const locations = ["Fianarantsoa", "Ambalavao", "Isandra", "Antsirabe", "Toamasina", "Vohibato"];
+  const locations = [
+    "Fianarantsoa",
+    "Ambalavao",
+    "Isandra",
+    "Antsirabe",
+    "Toamasina",
+    "Vohibato",
+  ];
 
   const filteredPartners = partners.filter((partner) => {
     const matchesCategory =
@@ -184,16 +300,212 @@ export default function PartenairesPage() {
       selectedType === "ALL" || partner.partnerType === selectedType;
 
     const matchesLocation =
-      selectedLocation === "ALL" ||
-      partner.location.includes(selectedLocation);
+      selectedLocation === "ALL" || partner.location.includes(selectedLocation);
 
     return matchesCategory && matchesSearch && matchesType && matchesLocation;
   });
 
   return (
     <div className="space-y-4">
+      <section
+        data-actor-card
+        className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)]"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+              <FileSignature className="h-4 w-4 text-emerald-600" />
+              Contrats avec vos partenaires
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Retrouvez vos contrats acceptés et leurs détails.
+            </p>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+            {contracts.length}
+          </span>
+        </div>
+        {contractsError && (
+          <p role="alert" className="px-5 py-3 text-xs text-rose-700">
+            {contractsError}
+          </p>
+        )}
+        {contractsLoading ? (
+          <div className="flex items-center justify-center gap-2 px-5 py-10 text-xs font-medium text-slate-500">
+            <LoaderCircle className="h-4 w-4 animate-spin text-emerald-600" />
+            Chargement des contrats...
+          </div>
+        ) : contracts.length === 0 ? (
+          <p className="px-5 py-8 text-center text-xs text-slate-500">
+            Aucun contrat accepté pour le moment.
+          </p>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {contracts.map((contract) => (
+              <article
+                key={contract.id}
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-bold text-slate-900">
+                    {contract.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {contract.senderCompanyName} ·{" "}
+                    {contract.receiverCompanyName}
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-400">
+                    {contract.reference} · Accepté le{" "}
+                    {formatDate(contract.acceptedAt)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="mr-1 text-xs font-extrabold text-emerald-700">
+                    {formatAmount(contract.amount)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedContract(contract)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                    Détails
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void downloadContract(contract)}
+                    aria-label={`Télécharger le contrat ${contract.reference}`}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    PDF
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {selectedContract && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedContract(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="partner-contract-title"
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                  {selectedContract.reference}
+                </p>
+                <h2
+                  id="partner-contract-title"
+                  className="mt-1 text-lg font-extrabold text-slate-900"
+                >
+                  {selectedContract.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedContract(null)}
+                aria-label="Fermer les détails du contrat"
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-5 space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  selectedContract.senderCompanyName,
+                  selectedContract.receiverCompanyName,
+                ].map((companyName, index) => (
+                  <div
+                    key={`${companyName}-${index}`}
+                    className="rounded-2xl bg-slate-50 p-4"
+                  >
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {index === 0 ? "Émetteur" : "Destinataire"}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      {companyName}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Description
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                  {selectedContract.description}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <p className="text-[10px] font-bold uppercase text-slate-400">
+                    Montant
+                  </p>
+                  <p className="mt-1 text-sm font-extrabold text-emerald-700">
+                    {formatAmount(selectedContract.amount)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <p className="text-[10px] font-bold uppercase text-slate-400">
+                    Début
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-800">
+                    {formatDate(selectedContract.startDate)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-100 p-3">
+                  <p className="text-[10px] font-bold uppercase text-slate-400">
+                    Fin
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-800">
+                    {formatDate(selectedContract.endDate)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                Accepté le {formatDate(selectedContract.acceptedAt)} par{" "}
+                {selectedContract.receiverSignerName}
+              </p>
+              <div className="flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4">
+                <Link
+                  href={`/acteur/entreprises/${selectedContract.senderCompanyId === user?.company?.id ? selectedContract.receiverCompanyId : selectedContract.senderCompanyId}`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 px-4 py-2.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
+                >
+                  Profil du partenaire
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void downloadContract(selectedContract)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Télécharger le PDF
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
       {/* Barre de recherche + filtres */}
-      <div data-actor-card className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+      <div
+        data-actor-card
+        className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5"
+      >
         {/* Recherche */}
         <div className="flex-1 flex flex-col px-4 py-2 sm:border-r sm:border-slate-100">
           <label className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">
@@ -398,8 +710,8 @@ export default function PartenairesPage() {
                         item.rating >= 4.5
                           ? "bg-emerald-500"
                           : item.rating >= 4
-                          ? "bg-amber-500"
-                          : "bg-rose-500"
+                            ? "bg-amber-500"
+                            : "bg-rose-500"
                       }`}
                     >
                       <Star className="w-2.5 h-2.5" />
@@ -444,7 +756,10 @@ export default function PartenairesPage() {
           })}
         </div>
       ) : (
-        <div data-actor-card className="bg-white rounded-3xl border border-slate-100 p-12 text-center">
+        <div
+          data-actor-card
+          className="bg-white rounded-3xl border border-slate-100 p-12 text-center"
+        >
           <p className="text-slate-400 text-sm font-medium">
             Aucun partenaire ne correspond à votre recherche.
           </p>

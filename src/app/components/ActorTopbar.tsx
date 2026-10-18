@@ -30,11 +30,8 @@ export default function ActorTopbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
-  const {
-    unreadCount,
-    unreadMessageCount,
-    clearUnread,
-  } = useInterestsNotifications();
+  const { unreadCount, unreadMessageCount, clearUnread } =
+    useInterestsNotifications();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -55,12 +52,11 @@ export default function ActorTopbar() {
       router.replace("/login");
     } catch (cause) {
       setLogoutError(
-        cause instanceof Error ? cause.message : "La déconnexion a échoué."
+        cause instanceof Error ? cause.message : "La déconnexion a échoué.",
       );
     }
   };
 
-  // 5 navlinks : Opportunités, Partenaires, Annonce, Demandes, Messages
   const navItems = [
     {
       href: "/acteur/opportunites",
@@ -94,7 +90,6 @@ export default function ActorTopbar() {
     },
   ];
 
-  // Ferme le dropdown profil si on clique en dehors
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -109,9 +104,10 @@ export default function ActorTopbar() {
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-20 bg-white border-b border-slate-200 z-50">
+    /* 🟢 Remplacement de "border-b border-slate-200" par "shadow-md shadow-slate-200/50" */
+    <header className="fixed top-0 left-0 right-0 h-20 bg-white shadow-md shadow-slate-200/50 z-50">
       <div className="relative h-full max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-16 flex items-center justify-between gap-3">
-        {/* Zone gauche : Logo + Texte aligné */}
+        {/* Zone gauche : Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <Link
             href="/acteur/opportunites"
@@ -152,7 +148,7 @@ export default function ActorTopbar() {
           </button>
         </div>
 
-        {/* Zone centrale : Navigation (5 navlinks simples) */}
+        {/* Zone centrale : Navlinks avec effet d'ombre */}
         <nav className="hidden lg:flex items-center justify-center gap-0 flex-1 max-w-3xl mx-auto h-full">
           {navItems.map((item) => {
             const active = isActive(item.href);
@@ -172,14 +168,14 @@ export default function ActorTopbar() {
                         unreadMessageCount > 0 &&
                         !active
                       ? `${item.label} (${unreadMessageCount} nouveau${unreadMessageCount > 1 ? "x" : ""})`
-                    : item.label
+                      : item.label
                 }
                 className="group relative flex-1 h-full flex flex-col items-center justify-center gap-1 transition-all hover:bg-slate-50"
               >
                 <div
                   className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all ${
                     active
-                      ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                      ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/40"
                       : "text-slate-500 group-hover:text-slate-700"
                   }`}
                 >
@@ -199,15 +195,13 @@ export default function ActorTopbar() {
                 </div>
                 <span
                   className={`text-[11px] font-bold leading-none ${
-                    active ? "text-emerald-600" : "text-slate-500"
+                    active
+                      ? "text-emerald-600 font-extrabold"
+                      : "text-slate-500"
                   }`}
                 >
                   {item.label}
                 </span>
-
-                {active && (
-                  <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-emerald-600 rounded-full" />
-                )}
               </Link>
             );
           })}
@@ -217,7 +211,7 @@ export default function ActorTopbar() {
           <nav
             id="actor-mobile-navigation"
             aria-label="Navigation principale"
-            className="absolute left-3 right-3 top-[calc(100%+0.5rem)] z-50 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl sm:left-6 sm:right-auto sm:w-72 lg:hidden"
+            className="absolute left-3 right-3 top-[calc(100%+0.5rem)] z-50 rounded-2xl bg-white p-2 shadow-2xl shadow-slate-300/60 sm:left-6 sm:right-auto sm:w-72 lg:hidden"
           >
             {navItems.map((item) => {
               const active = isActive(item.href);
@@ -233,7 +227,7 @@ export default function ActorTopbar() {
                   aria-current={active ? "page" : undefined}
                   className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
                     active
-                      ? "bg-emerald-50 text-emerald-700"
+                      ? "bg-emerald-50 text-emerald-700 shadow-xs"
                       : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -248,9 +242,7 @@ export default function ActorTopbar() {
                       unreadMessageCount > 0 &&
                       !active && (
                         <span className="absolute -right-2 -top-2 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-bold text-white">
-                          {unreadMessageCount > 99
-                            ? "99+"
-                            : unreadMessageCount}
+                          {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
                         </span>
                       )}
                   </span>
@@ -261,14 +253,12 @@ export default function ActorTopbar() {
           </nav>
         )}
 
-        {/* Zone droite : Notifications | Séparateur | Profil */}
+        {/* Zone droite : Profile & Notifications */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Notifications */}
           <NotificationsMenu />
 
           <div className="w-px h-7 bg-slate-200 mx-1" />
 
-          {/* Profil */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -283,7 +273,7 @@ export default function ActorTopbar() {
                   className="h-11 w-11 rounded-full object-cover ring-2 ring-white shadow-sm transition group-hover:opacity-90"
                 />
               ) : (
-                <div className="w-11 h-11 rounded-full bg-linear-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-sm font-bold ring-2 ring-white shadow-sm group-hover:opacity-90 transition">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center text-sm font-bold ring-2 ring-white shadow-sm group-hover:opacity-90 transition">
                   {initials}
                 </div>
               )}
@@ -296,7 +286,10 @@ export default function ActorTopbar() {
             </button>
 
             {isProfileOpen && (
-              <div data-actor-card className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-xs text-slate-700">
+              <div
+                data-actor-card
+                className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl shadow-slate-200/80 py-2 z-50 text-xs text-slate-700"
+              >
                 <div className="px-4 py-2 border-b border-slate-100">
                   <p className="font-bold text-slate-900">{displayName}</p>
                   <p className="text-[10px] text-slate-400">{user?.email}</p>

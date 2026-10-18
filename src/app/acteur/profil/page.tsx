@@ -5,6 +5,8 @@ import type { FormEvent } from "react";
 import {
   BriefcaseBusiness,
   CalendarDays,
+  Download,
+  FileSignature,
   LoaderCircle,
   MapPin,
   Pencil,
@@ -44,6 +46,23 @@ type AnnouncementForm = {
   deadline: string;
 };
 
+type ContractRecord = {
+  id: string;
+  reference: string;
+  status: "ACCEPTED";
+  title: string;
+  description: string;
+  amount: string;
+  startDate: string;
+  endDate: string;
+  senderCompanyName: string;
+  receiverCompanyName: string;
+  senderCompanyId: string;
+  receiverCompanyId: string;
+  receiverSignerName: string;
+  acceptedAt: string;
+};
+
 const EMPTY_FORM: AnnouncementForm = {
   type: "OFFRE",
   title: "",
@@ -73,6 +92,14 @@ const formatDate = (date: string) => {
   return Number.isNaN(d.getTime())
     ? "Date inconnue"
     : new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(d);
+};
+
+const formatAmount = (amount: string) => {
+  try {
+    return `${new Intl.NumberFormat("fr-FR").format(BigInt(amount))} Ar`;
+  } catch {
+    return "Montant indisponible";
+  }
 };
 
 // ─────────────────────────────────────────────────────────
@@ -112,7 +139,7 @@ function LineChart({
     <div className="w-full">
       <div className="mb-4 flex flex-wrap items-center justify-end gap-5">
         {[
-          { c: "bg-violet-500", l: "Total" },
+          { c: "bg-emerald-600", l: "Total" },
           { c: "bg-emerald-500", l: "Offres" },
           { c: "bg-amber-500", l: "Demandes" },
         ].map(({ c, l }) => (
@@ -130,8 +157,8 @@ function LineChart({
       >
         <defs>
           <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+            <stop offset="0%" stopColor="#2EA043" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#2EA043" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -171,7 +198,7 @@ function LineChart({
         <path
           d={path(total)}
           fill="none"
-          stroke="#8b5cf6"
+          stroke="#2EA043"
           strokeWidth="3"
           strokeLinecap="round"
         />
@@ -195,14 +222,14 @@ function LineChart({
         {total.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r="6" fill="white" />
-            <circle cx={p.x} cy={p.y} r="4" fill="#8b5cf6" />
+            <circle cx={p.x} cy={p.y} r="4" fill="#2EA043" />
             <text
               x={p.x}
               y={p.y - 12}
               textAnchor="middle"
               fontSize="11"
               fontWeight="800"
-              fill="#6d28d9"
+              fill="#2EA043"
             >
               {p.v}
             </text>
@@ -228,6 +255,100 @@ function LineChart({
               r="3"
               fill={i < offres.length ? "#10b981" : "#f59e0b"}
             />
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function ContractLineChart({
+  data,
+}: {
+  data: { label: string; total: number }[];
+}) {
+  const width = 900;
+  const height = 250;
+  const padding = { top: 24, right: 24, bottom: 42, left: 42 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const maximum = Math.max(...data.map((item) => item.total), 1);
+  const points = data.map((item, index) => ({
+    ...item,
+    x: padding.left + (index / Math.max(data.length - 1, 1)) * chartWidth,
+    y: padding.top + chartHeight - (item.total / maximum) * chartHeight,
+  }));
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+
+  return (
+    <div className="w-full">
+      <div className="mb-3 flex items-center justify-end gap-2 text-[11px] font-semibold text-slate-600">
+        <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+        Contrats acceptés
+      </div>
+      <svg
+        role="img"
+        aria-label="Évolution mensuelle des contrats acceptés sur les six derniers mois"
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+      >
+        {Array.from({ length: 5 }, (_, index) => {
+          const y = padding.top + (index / 4) * chartHeight;
+          return (
+            <g key={index}>
+              <line
+                x1={padding.left}
+                y1={y}
+                x2={width - padding.right}
+                y2={y}
+                stroke="#e2e8f0"
+                strokeDasharray={index === 4 ? undefined : "4 4"}
+              />
+              <text
+                x={padding.left - 9}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="#94a3b8"
+              >
+                {Math.round(maximum * (1 - index / 4))}
+              </text>
+            </g>
+          );
+        })}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="#059669"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {points.map((point) => (
+          <g key={point.label}>
+            <circle cx={point.x} cy={point.y} r="5" fill="#059669" />
+            <text
+              x={point.x}
+              y={point.y - 12}
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight="700"
+              fill="#047857"
+            >
+              {point.total}
+            </text>
+            <text
+              x={point.x}
+              y={height - 14}
+              textAnchor="middle"
+              fontSize="10"
+              fontWeight="600"
+              fill="#64748b"
+            >
+              {point.label}
+            </text>
           </g>
         ))}
       </svg>
@@ -318,7 +439,7 @@ function DonutChart({ offre, demande }: { offre: number; demande: number }) {
               cy={S / 2}
               r={R}
               fill="none"
-              stroke="#10b981"
+              stroke="#2EA043"
               strokeWidth={SW}
               strokeDasharray={`${oP * C} ${C - oP * C}`}
               strokeLinecap="round"
@@ -380,6 +501,9 @@ function DonutChart({ offre, demande }: { offre: number; demande: number }) {
 export default function ActorProfilePage() {
   const { user } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [contracts, setContracts] = useState<ContractRecord[]>([]);
+  const [isLoadingContracts, setIsLoadingContracts] = useState(true);
+  const [contractsError, setContractsError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -410,6 +534,74 @@ export default function ActorProfilePage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!user?.company?.id) return;
+    let active = true;
+
+    async function loadContracts() {
+      setIsLoadingContracts(true);
+      setContractsError(null);
+      try {
+        const response = await fetch(`${getApiRoot()}/messages/contracts`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          const result = (await response.json().catch(() => null)) as {
+            message?: string;
+          } | null;
+          throw new Error(
+            result?.message ||
+              "Impossible de charger l’historique des contrats.",
+          );
+        }
+        const result = (await response.json()) as ContractRecord[];
+        if (active) setContracts(Array.isArray(result) ? result : []);
+      } catch (cause) {
+        if (active) {
+          setContractsError(
+            cause instanceof Error
+              ? cause.message
+              : "Impossible de charger l’historique des contrats.",
+          );
+        }
+      } finally {
+        if (active) setIsLoadingContracts(false);
+      }
+    }
+
+    void loadContracts();
+    return () => {
+      active = false;
+    };
+  }, [user?.company?.id]);
+
+  const downloadContract = async (contract: ContractRecord) => {
+    try {
+      const response = await fetch(
+        `${getApiRoot()}/messages/contracts/${contract.id}/pdf`,
+        { credentials: "include" },
+      );
+      if (!response.ok) {
+        throw new Error("Le PDF du contrat n’a pas pu être téléchargé.");
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${contract.reference}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (cause) {
+      setContractsError(
+        cause instanceof Error
+          ? cause.message
+          : "Le PDF du contrat n’a pas pu être téléchargé.",
+      );
+    }
+  };
 
   // Édition
   const startEdit = (a: Announcement) => {
@@ -512,6 +704,30 @@ export default function ActorProfilePage() {
     });
   }, [announcements]);
 
+  const contractEvolution = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, index) => {
+      const monthDate = new Date(
+        now.getFullYear(),
+        now.getMonth() - 5 + index,
+        1,
+      );
+      const label = monthDate
+        .toLocaleDateString("fr-FR", { month: "short" })
+        .replace(".", "");
+      return {
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        total: contracts.filter((contract) => {
+          const acceptedDate = new Date(contract.acceptedAt);
+          return (
+            acceptedDate.getFullYear() === monthDate.getFullYear() &&
+            acceptedDate.getMonth() === monthDate.getMonth()
+          );
+        }).length,
+      };
+    });
+  }, [contracts]);
+
   // Historique filtré
   const history = useMemo(() => {
     const sorted = [...announcements].sort(
@@ -524,7 +740,7 @@ export default function ActorProfilePage() {
   }, [announcements, filter]);
 
   const barData = [
-    { label: "Publiées", value: stats.published, color: "#10b981" },
+    { label: "Publiées", value: stats.published, color: "#2EA043" },
     { label: "En cours", value: stats.inProgress, color: "#f59e0b" },
     { label: "Clôturées", value: stats.closed, color: "#64748b" },
   ];
@@ -543,7 +759,10 @@ export default function ActorProfilePage() {
   return (
     <div className="w-full space-y-6 py-4 px-4 sm:px-6 lg:px-8">
       {/* Évolution */}
-      <section data-actor-card className="rounded-3xl border border-[#F2F2F2] bg-white p-6">
+      <section
+        data-actor-card
+        className="rounded-3xl border border-[#F2F2F2] bg-white p-6"
+      >
         <div className="mb-5">
           <h2 className="text-sm font-extrabold text-slate-900">
             Évolution de vos annonces
@@ -557,7 +776,10 @@ export default function ActorProfilePage() {
 
       {/* Barres + Donut */}
       <section className="grid gap-5 lg:grid-cols-5">
-        <div data-actor-card className="lg:col-span-3 rounded-3xl border border-[#F2F2F2] bg-white p-6">
+        <div
+          data-actor-card
+          className="lg:col-span-3 rounded-3xl border border-[#F2F2F2] bg-white p-6"
+        >
           <div className="mb-5">
             <h2 className="text-sm font-extrabold text-slate-900">
               Répartition par statut
@@ -568,7 +790,10 @@ export default function ActorProfilePage() {
           </div>
           <BarChart data={barData} />
         </div>
-        <div data-actor-card className="lg:col-span-2 rounded-3xl border border-[#F2F2F2] bg-white p-6">
+        <div
+          data-actor-card
+          className="lg:col-span-2 rounded-3xl border border-[#F2F2F2] bg-white p-6"
+        >
           <div className="mb-5">
             <h2 className="text-sm font-extrabold text-slate-900">
               Offres vs Demandes
@@ -579,6 +804,155 @@ export default function ActorProfilePage() {
           </div>
           <DonutChart offre={stats.offres} demande={stats.demandes} />
         </div>
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-5">
+        <div
+          data-actor-card
+          className="rounded-3xl border border-[#F2F2F2] bg-white p-6 lg:col-span-3"
+        >
+          <div className="mb-5">
+            <h2 className="text-sm font-extrabold text-slate-900">
+              Évolution des contrats
+            </h2>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              Contrats acceptés au cours des six derniers mois
+            </p>
+          </div>
+          {isLoadingContracts ? (
+            <div className="flex h-48 items-center justify-center gap-2 text-xs font-medium text-slate-500">
+              <LoaderCircle className="h-4 w-4 animate-spin text-emerald-600" />
+              Chargement des contrats...
+            </div>
+          ) : contractsError ? (
+            <p role="alert" className="py-16 text-center text-xs text-rose-600">
+              {contractsError}
+            </p>
+          ) : (
+            <>
+              <ContractLineChart data={contractEvolution} />
+              {contracts.length === 0 && (
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  Aucun contrat accepté à afficher pour le moment.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        <div
+          data-actor-card
+          className="rounded-3xl border border-[#F2F2F2] bg-white p-6 lg:col-span-2"
+        >
+          <div className="mb-5">
+            <h2 className="text-sm font-extrabold text-slate-900">
+              Suivi contractuel
+            </h2>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              Vue d’ensemble de vos engagements acceptés
+            </p>
+          </div>
+          <p className="text-4xl font-extrabold text-emerald-700">
+            {contracts.length}
+          </p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            contrat{contracts.length === 1 ? "" : "s"} enregistré
+            {contracts.length === 1 ? "" : "s"}
+          </p>
+          {contracts[0] && (
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Dernier contrat
+              </p>
+              <p className="mt-1 truncate text-sm font-bold text-slate-800">
+                {contracts[0].title}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {formatDate(contracts[0].acceptedAt)}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900">
+            Historique des contrats
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Contrats acceptés avec vos partenaires
+          </p>
+        </div>
+        {contractsError && (
+          <p
+            role="alert"
+            className="rounded-xl bg-rose-50 px-4 py-3 text-xs text-rose-700"
+          >
+            {contractsError}
+          </p>
+        )}
+        {isLoadingContracts ? (
+          <div className="flex items-center justify-center gap-2 rounded-3xl border border-[#F2F2F2] bg-white py-12 text-xs font-medium text-slate-500">
+            <LoaderCircle className="h-4 w-4 animate-spin text-emerald-600" />
+            Chargement de l’historique...
+          </div>
+        ) : contracts.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-[#F2F2F2] bg-white px-6 py-10 text-center text-sm text-slate-500">
+            Aucun contrat enregistré.
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-3xl border border-[#F2F2F2] bg-white">
+            {contracts.map((contract) => {
+              const partnerName =
+                contract.senderCompanyId === user?.company?.id
+                  ? contract.receiverCompanyName
+                  : contract.senderCompanyName;
+              return (
+                <article
+                  key={contract.id}
+                  className="flex flex-col gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                      <FileSignature className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-bold text-slate-900">
+                        {contract.title}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {partnerName} · {contract.reference}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Accepté le {formatDate(contract.acceptedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    <span className="text-xs font-extrabold text-emerald-700">
+                      {formatAmount(contract.amount)}
+                    </span>
+                    <a
+                      href={`/acteur/entreprises/${contract.senderCompanyId === user?.company?.id ? contract.receiverCompanyId : contract.senderCompanyId}`}
+                      className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
+                    >
+                      Détails
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => void downloadContract(contract)}
+                      aria-label={`Télécharger le contrat ${contract.reference}`}
+                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      PDF
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Historique */}
@@ -603,7 +977,7 @@ export default function ActorProfilePage() {
                   onClick={() => setFilter(f.value)}
                   className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
                     active
-                      ? "bg-[#2FA084] text-white border border-[#2FA084]"
+                      ? "bg-[#2EA043] text-white border border-[#2EA043]"
                       : "border border-[#F2F2F2] bg-white text-slate-600 hover:bg-[#FAFAFA]"
                   }`}
                 >
@@ -641,12 +1015,18 @@ export default function ActorProfilePage() {
         )}
 
         {isLoading ? (
-          <div data-actor-card className="flex items-center justify-center gap-3 rounded-3xl border border-[#F2F2F2] bg-white py-16 text-sm font-semibold text-slate-500">
+          <div
+            data-actor-card
+            className="flex items-center justify-center gap-3 rounded-3xl border border-[#F2F2F2] bg-white py-16 text-sm font-semibold text-slate-500"
+          >
             <LoaderCircle className="h-5 w-5 animate-spin text-emerald-600" />
             Chargement de vos annonces...
           </div>
         ) : announcements.length === 0 ? (
-          <div data-actor-card className="rounded-3xl border border-dashed border-[#F2F2F2] bg-white px-6 py-14 text-center">
+          <div
+            data-actor-card
+            className="rounded-3xl border border-dashed border-[#F2F2F2] bg-white px-6 py-14 text-center"
+          >
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
               <BriefcaseBusiness className="h-5 w-5" />
             </div>
@@ -665,7 +1045,10 @@ export default function ActorProfilePage() {
             </Link>
           </div>
         ) : history.length === 0 ? (
-          <div data-actor-card className="rounded-3xl border border-dashed border-[#F2F2F2] bg-white px-6 py-10 text-center">
+          <div
+            data-actor-card
+            className="rounded-3xl border border-dashed border-[#F2F2F2] bg-white px-6 py-10 text-center"
+          >
             <p className="text-sm font-semibold text-slate-500">
               Aucune annonce dans cette catégorie
             </p>
