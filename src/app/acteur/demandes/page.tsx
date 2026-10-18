@@ -1,127 +1,157 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Check,
   X,
-  Clock,
-  Building2,
   MessageSquare,
-  Loader2,
   Inbox,
   Send,
-  AlertCircle,
   Search,
-  ChevronDown,
+  Info,
+  Calendar,
+  Tag,
 } from "lucide-react";
 import { getApiRoot } from "../../lib/auth";
+import { useAuth } from "../../providers/AuthProvider";
+import {
+  useInterestsNotifications,
+  type InterestNotification,
+} from "../../providers/InterestsNotificationsProvider";
 
-export interface InterestItem {
-  id: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED";
-  createdAt: string;
-  message?: string;
-  senderCompany: {
-    id: string;
-    companyName: string;
-    logoUrl?: string;
-    sector?: string;
-    phone?: string;
-  };
-  receiverCompany: {
-    id: string;
-    companyName: string;
-  };
-  announcement: {
-    id: string;
-    title: string;
-    category?: string;
-  };
-}
+type InterestItem = InterestNotification;
 
 export default function DemandesPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { latestInterest, latestStatusUpdate, connectionError } =
+    useInterestsNotifications();
   const [activeTab, setActiveTab] = useState<"received" | "sent">("received");
   const [interests, setInterests] = useState<InterestItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  // Barre de recherche et filtre classique
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
 
-  const fetchInterests = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const endpoint =
-        activeTab === "received" ? "/interests/received" : "/interests/sent";
-      const res = await fetch(`${getApiRoot()}${endpoint}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(
-          "Impossible de charger les demandes de mise en relation.",
-        );
-      }
-
-      const data = await res.json();
-      setInterests(data);
-    } catch (err: any) {
-      console.error("Erreur chargement intérêts :", err);
-      setError(err.message || "Erreur de connexion au serveur.");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!user?.company?.id) {
+      setError(
+        "Connectez-vous avec un compte entreprise pour voir vos demandes.",
+      );
+      setIsLoading(false);
+      return;
     }
-  }, [activeTab]);
+    const companyId = user.company.id;
+
+    let active = true;
+    async function loadInterests() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`${getApiRoot()}/interests/${activeTab}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de charger vos demandes de mise en relation.",
+          );
+        }
+        const loaded = (await response.json()) as InterestItem[];
+        if (active) {
+          setInterests((current) => {
+            const currentTabItems = current.filter((interest) =>
+              activeTab === "received"
+                ? interest.receiverCompany?.id === companyId
+                : interest.senderCompany?.id === companyId,
+            );
+            const byId = new Map(
+              [...loaded, ...currentTabItems].map((interest) => [
+                interest.id,
+                interest,
+              ]),
+            );
+            return [...byId.values()];
+          });
+        }
+      } catch (cause) {
+        if (active) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Impossible de charger vos demandes.",
+          );
+        }
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    }
+
+    void loadInterests();
+    return () => {
+      active = false;
+    };
+  }, [activeTab, isAuthLoading, user?.company?.id]);
 
   useEffect(() => {
-    fetchInterests();
-  }, [fetchInterests]);
+    if (!latestInterest) return;
+    setInterests((current) => [
+      latestInterest,
+      ...current.filter((item) => item.id !== latestInterest.id),
+    ]);
+  }, [latestInterest]);
+
+  useEffect(() => {
+    if (!latestStatusUpdate) return;
+    setInterests((current) =>
+      current.map((item) =>
+        item.id === latestStatusUpdate.id ? latestStatusUpdate : item,
+      ),
+    );
+  }, [latestStatusUpdate]);
 
   const handleResponse = async (
     interestId: string,
     action: "accept" | "reject",
   ) => {
+    setError(null);
     try {
-      setActionLoadingId(interestId);
-      const res = await fetch(
+      const response = await fetch(
         `${getApiRoot()}/interests/${interestId}/${action}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        },
+        { method: "PATCH", credentials: "include" },
       );
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(
-          errData.message || "Erreur lors du traitement de la demande.",
-        );
+      const updated = (await response.json()) as InterestItem & {
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(updated.message || "La réponse à la demande a échoué.");
       }
-
-      setInterests((prev) =>
-        prev.map((item) =>
-          item.id === interestId
-            ? { ...item, status: action === "accept" ? "ACCEPTED" : "REJECTED" }
-            : item,
-        ),
+      setInterests((current) =>
+        current.map((item) => (item.id === interestId ? updated : item)),
       );
-    } catch (err: any) {
-      alert(err.message || "Une erreur est survenue.");
-    } finally {
-      setActionLoadingId(null);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "La réponse à la demande a échoué.",
+      );
     }
   };
 
+  const activeTabInterests = useMemo(
+    () =>
+      interests.filter((item) =>
+        activeTab === "received"
+          ? item.receiverCompany?.id === user?.company?.id
+          : item.senderCompany?.id === user?.company?.id,
+      ),
+    [interests, activeTab, user?.company?.id],
+  );
+
   const filteredInterests = useMemo(() => {
-    return interests.filter((item) => {
+    return activeTabInterests.filter((item) => {
       const targetCompany =
         activeTab === "received" ? item.senderCompany : item.receiverCompany;
       const matchesSearch =
@@ -138,105 +168,117 @@ export default function DemandesPage() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [interests, searchQuery, selectedStatus, activeTab]);
+  }, [activeTabInterests, searchQuery, selectedStatus, activeTab]);
+
+  const counts = useMemo(() => {
+    return {
+      all: activeTabInterests.length,
+      pending: activeTabInterests.filter((i) => i.status === "PENDING").length,
+      accepted: activeTabInterests.filter((i) => i.status === "ACCEPTED")
+        .length,
+    };
+  }, [activeTabInterests]);
+
+  const statusFilters = [
+    { value: "ALL", label: "Toutes", count: counts.all },
+    { value: "PENDING", label: "En attente", count: counts.pending },
+    { value: "ACCEPTED", label: "Acceptées", count: counts.accepted },
+  ];
 
   return (
-    <div className="space-y-6 pt-4 max-w-5xl mx-auto px-4 sm:px-6 pb-12">
-      {/* En-tête */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-xs">
-        <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-            Gestion des Mises en Relation B2B
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Suivez les manifestations d'intérêt reçues sur vos annonces et
-            celles que vous avez envoyées.
-          </p>
+    <div className="w-full space-y-6 py-4 px-4 sm:px-6 lg:px-8">
+      {/* ─── Barre d'outils ─── */}
+      <div className="flex flex-col gap-4">
+        {/* Ligne 1 : Recherche + Switcher */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" />
+            <input
+              type="text"
+              placeholder="Rechercher par nom, annonce, message..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white border-2 border-[#F2F2F2] text-xs font-medium text-slate-800 placeholder-slate-300 focus:outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center rounded-full border-2 border-[#F2F2F2] bg-white p-1 shrink-0">
+            <button
+              onClick={() => setActiveTab("received")}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                activeTab === "received"
+                  ? "bg-emerald-500 text-white"
+                  : "text-slate-500 hover:text-emerald-500"
+              }`}
+            >
+              <Inbox className="w-3.5 h-3.5" />
+              <span>Reçues</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("sent")}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                activeTab === "sent"
+                  ? "bg-emerald-500 text-white"
+                  : "text-slate-500 hover:text-emerald-500"
+              }`}
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Envoyées</span>
+            </button>
+          </div>
         </div>
 
-        {/* Onglets Reçues / Envoyées */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60">
-          <button
-            onClick={() => setActiveTab("received")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === "received"
-                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Inbox className="w-3.5 h-3.5" />
-            <span>Reçues</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("sent")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === "sent"
-                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Envoyées</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Barre de recherche classique + Filtre par statut */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="relative flex-1">
-          <Search
-            className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-            strokeWidth={2.2}
-          />
-          <input
-            type="text"
-            placeholder="Rechercher par entreprise ou titre d'annonce..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition shadow-xs"
-          />
-        </div>
-
-        <div className="relative">
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="pl-4 pr-9 py-3 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 appearance-none cursor-pointer transition shadow-xs"
-          >
-            <option value="ALL">Tous les statuts</option>
-            <option value="PENDING">En attente</option>
-            <option value="ACCEPTED">Acceptée</option>
-            <option value="REJECTED">Refusée</option>
-          </select>
-          <ChevronDown
-            className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-            strokeWidth={2.5}
-          />
+        {/* Ligne 2 : Filtres par statut */}
+        <div className="flex flex-wrap items-center gap-2">
+          {statusFilters.map((f) => {
+            const active = selectedStatus === f.value;
+            return (
+              <button
+                key={f.value}
+                onClick={() => setSelectedStatus(f.value)}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold transition-colors border-2 ${
+                  active
+                    ? "bg-emerald-500 text-white border-emerald-500"
+                    : "border-[#F2F2F2] bg-white text-slate-600 hover:bg-[#FAFAFA]"
+                }`}
+              >
+                {f.label}
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
+                    active
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {f.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {error && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
+      {/* ─── Erreurs ─── */}
+      {(error || connectionError) && (
+        <div
+          data-actor-card
+          role="alert"
+          className="rounded-xl border-2 border-[#F2F2F2] bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700"
+        >
+          {error || connectionError}
         </div>
       )}
 
-      {/* Liste des demandes */}
-      {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
-          <p className="text-xs font-medium text-slate-500">
-            Chargement des demandes...
-          </p>
+      {/* ─── Grille des cartes ─── */}
+      {isLoading ? (
+        <div data-actor-card className="rounded-xl border-2 border-[#F2F2F2] bg-white py-16 text-center text-sm font-semibold text-slate-500">
+          Chargement de vos demandes...
         </div>
       ) : filteredInterests.length > 0 ? (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredInterests.map((item) => {
             const isPending = item.status === "PENDING";
             const isAccepted = item.status === "ACCEPTED";
-            const isActionLoading = actionLoadingId === item.id;
             const targetCompany =
               activeTab === "received"
                 ? item.senderCompany
@@ -245,78 +287,98 @@ export default function DemandesPage() {
             return (
               <article
                 key={item.id}
-                className="bg-white border border-slate-100 p-5 rounded-[24px] shadow-[0_4px_20px_-8px_rgba(15,23,42,0.06)] hover:shadow-md hover:border-emerald-200 transition space-y-4"
+                className="bg-white rounded-xl border-2 border-[#F2F2F2] p-5 transition-colors hover:border-emerald-500 flex flex-col justify-between"
               >
-                {/* En-tête de carte */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <img
-                      src={
-                        targetCompany?.logoUrl ||
-                        "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80"
-                      }
-                      alt={targetCompany?.companyName || "Entreprise"}
-                      className="w-11 h-11 rounded-full object-cover ring-2 ring-white shadow-xs shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-slate-900 truncate">
-                        {targetCompany?.companyName || "Entreprise partenaire"}
-                      </h3>
-                      <p className="text-xs text-slate-500 truncate">
-                        {targetCompany?.sector || "Secteur non spécifié"}
-                      </p>
-                    </div>
+                <div className="space-y-4">
+                  {/* En-tête : Logo + Nom + Statut */}
+                  <div className="flex items-center justify-between gap-3">
+                    <Link
+                      href={`/acteur/entreprises/${targetCompany.id}`}
+                      title={`Voir le profil de ${targetCompany.companyName}`}
+                      className="flex items-center gap-3 min-w-0 group"
+                    >
+                      {targetCompany.user?.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={targetCompany.user.avatarUrl}
+                          alt={`Photo de ${targetCompany.companyName}`}
+                          className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-[#F2F2F2]"
+                        />
+                      ) : (
+                        <div
+                          aria-label={`Photo non disponible pour ${targetCompany.companyName}`}
+                          className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 shrink-0 flex items-center justify-center text-sm font-bold ring-2 ring-[#F2F2F2]"
+                        >
+                          {targetCompany.companyName
+                            .trim()
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-emerald-600 group-hover:underline">
+                          {targetCompany.companyName}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          {targetCompany.sector}
+                        </p>
+                      </div>
+                    </Link>
+
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-tight shrink-0 border-2 ${
+                        isPending
+                          ? "bg-amber-50 text-amber-700 border-[#F2F2F2]"
+                          : isAccepted
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-500"
+                            : "bg-rose-50 text-rose-700 border-[#F2F2F2]"
+                      }`}
+                    >
+                      {isPending
+                        ? "En attente"
+                        : isAccepted
+                          ? "Acceptée"
+                          : "Refusée"}
+                    </span>
                   </div>
 
-                  <span
-                    className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide shrink-0 ${
-                      isPending
-                        ? "bg-amber-50 text-amber-700 border border-amber-200"
-                        : isAccepted
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
-                    }`}
-                  >
-                    {isPending
-                      ? "En attente"
-                      : isAccepted
-                        ? "Acceptée"
-                        : "Refusée"}
-                  </span>
+                  {/* Ligne unique : Catégorie · Date */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px]">
+                    <span className="inline-flex items-center gap-1 text-slate-500">
+                      <Tag className="w-3 h-3 text-slate-400" />
+                      {item.announcement?.category}
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="inline-flex items-center gap-1 text-slate-400">
+                      <Calendar className="w-3 h-3 text-slate-400" />
+                      {new Date(item.createdAt).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+
+                  {/* Titre + message */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
+                      {item.announcement?.title}
+                    </h4>
+                    {item.message && (
+                      <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed bg-[#FAFAFA] p-2.5 rounded-xl border-2 border-[#F2F2F2]">
+                        "{item.message}"
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Détails de l'annonce */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-emerald-700">
-                    Annonce concernée :
-                  </span>
-                  <p className="text-xs font-bold text-slate-900">
-                    {item.announcement?.title}
-                  </p>
-                  {item.message && (
-                    <p className="text-xs text-slate-600 italic pt-1 border-t border-slate-200/60">
-                      "{item.message}"
-                    </p>
-                  )}
-                </div>
-
-                {/* Pied / Actions */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                  <span className="flex items-center gap-1 text-[10px] text-slate-400 font-medium">
-                    <Clock className="w-3 h-3 text-emerald-600" />
-                    {new Date(item.createdAt).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-
+                {/* Actions */}
+                <div className="pt-4 mt-4 border-t-2 border-[#F2F2F2] flex items-center gap-2">
                   {activeTab === "received" && isPending ? (
-                    <div className="flex items-center gap-2">
+                    <>
                       <button
                         onClick={() => handleResponse(item.id, "reject")}
-                        disabled={isActionLoading}
-                        className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition flex items-center gap-1.5 disabled:opacity-50"
+                        className="flex-1 py-2.5 px-3 rounded-full border-2 border-[#F2F2F2] text-slate-500 hover:bg-[#FAFAFA] text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
                       >
                         <X className="w-3.5 h-3.5" />
                         <span>Refuser</span>
@@ -324,44 +386,36 @@ export default function DemandesPage() {
 
                       <button
                         onClick={() => handleResponse(item.id, "accept")}
-                        disabled={isActionLoading}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                        className="flex-1 py-2.5 px-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
                       >
-                        {isActionLoading ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
+                        <Check className="w-3.5 h-3.5" />
                         <span>Accepter</span>
                       </button>
-                    </div>
+                    </>
                   ) : isAccepted ? (
                     <Link
-                      href={`/acteur/messages`}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 hover:bg-emerald-100 transition"
+                      href="/acteur/messages"
+                      className="w-full py-2.5 px-4 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors flex items-center justify-center gap-2"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
                       <span>Ouvrir la discussion</span>
                     </Link>
-                  ) : null}
+                  ) : (
+                    <div className="w-full py-2 text-center text-xs font-semibold text-slate-400 italic">
+                      Demande archivée
+                    </div>
+                  )}
                 </div>
               </article>
             );
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center shadow-xs space-y-3">
-          <p className="text-slate-500 text-xs font-semibold">
-            {activeTab === "received"
-              ? "Aucune demande de mise en relation reçue pour le moment."
-              : "Vous n'avez envoyé aucune manifestation d'intérêt pour le moment."}
+        <div data-actor-card className="rounded-xl border-2 border-dashed border-[#F2F2F2] bg-white p-12 text-center space-y-3">
+          <Info className="w-8 h-8 text-slate-300 mx-auto" />
+          <p className="text-xs font-bold text-slate-500">
+            Aucune demande de mise en relation correspondant aux critères.
           </p>
-          <Link
-            href="/acteur/opportunites"
-            className="inline-block text-xs font-bold text-emerald-600 hover:underline"
-          >
-            Explorer les opportunités →
-          </Link>
         </div>
       )}
     </div>

@@ -1,15 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import {
+  ArrowLeft,
   Search,
   ChevronDown,
-  Info,
-  X,
-  Phone,
-  Mail,
   Calendar,
-  MapPin,
   Paperclip,
   Send,
   MessageSquare,
@@ -17,10 +15,66 @@ import {
   Play,
   Check,
   CheckCheck,
+  FileSignature,
+  Coins,
+  ShieldCheck,
+  Download,
+  FileCheck,
+  Plus,
+  LoaderCircle,
 } from "lucide-react";
+import { getApiRoot } from "../../lib/auth";
+import { useAuth } from "../../providers/AuthProvider";
+import { useInterestsNotifications } from "../../providers/InterestsNotificationsProvider";
+import ContractProposalModal from "./ContractProposalModal";
+
+interface CompanySummary {
+  id: string;
+  companyName: string;
+  logoUrl?: string | null;
+  sector?: string;
+  managerRole?: string;
+  address?: string;
+  phone?: string;
+  user?: { avatarUrl?: string | null; email?: string };
+}
+
+interface InterestItem {
+  id: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  createdAt: string;
+  message?: string;
+  senderCompany: CompanySummary;
+  receiverCompany: CompanySummary;
+  announcement?: { id: string; title: string; category?: string };
+}
+
+interface MessageItem {
+  id: string;
+  createdAt: string;
+  sender: string;
+  text: string;
+  time: string;
+  isMine: boolean;
+  isRead?: boolean;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentMimeType?: string | null;
+  isContract?: boolean;
+  contractDetails?: {
+    title: string;
+    amount: number;
+    startDate: string;
+    endDate: string;
+    status: "PENDING" | "ACCEPTED" | "REJECTED";
+    signerName?: string;
+  };
+}
 
 interface Conversation {
-  id: number;
+  id: string;
+  interest: InterestItem;
+  partner: CompanySummary;
   name: string;
   role: string;
   lastMessage: string;
@@ -29,202 +83,581 @@ interface Conversation {
   isOnline: boolean;
   isRead: boolean;
   avatar: string;
-  messages: {
-    id: number;
-    sender: string;
-    text: string;
-    time: string;
-    isMine: boolean;
-    isRead?: boolean;
-    isDocument?: boolean;
-    documentName?: string;
-  }[];
+  messages: MessageItem[];
 }
 
-interface ProfileData {
-  name: string;
-  location: string;
-  role: string;
-  phone: string;
-  email: string;
-  birthday: string;
+interface ApiMessage {
+  id: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  sender: CompanySummary;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentMimeType?: string | null;
+}
+
+interface SocketAck {
+  ok: boolean;
+  markedReadCount?: number;
+  error?: string;
+}
+
+function formatMessageTime(date: string) {
+  return new Date(date).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getMessageDateKey(date: string | Date) {
+  const parsedDate = new Date(date);
+  return `${parsedDate.getFullYear()}-${parsedDate.getMonth()}-${parsedDate.getDate()}`;
+}
+
+function formatMessageDate(date: string) {
+  const messageDate = new Date(date);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (getMessageDateKey(date) === getMessageDateKey(today)) {
+    return "Aujourd'hui";
+  }
+  if (getMessageDateKey(date) === getMessageDateKey(yesterday)) {
+    return "Hier";
+  }
+
+  const formattedDate = messageDate.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    ...(messageDate.getFullYear() !== today.getFullYear()
+      ? { year: "numeric" as const }
+      : {}),
+  });
+  return (
+    formattedDate.charAt(0).toLocaleUpperCase("fr-FR") + formattedDate.slice(1)
+  );
+}
+
+function shouldShowMessageDate(
+  message: MessageItem,
+  previousMessage?: MessageItem,
+) {
+  return (
+    !previousMessage ||
+    getMessageDateKey(message.createdAt) !==
+      getMessageDateKey(previousMessage.createdAt)
+  );
 }
 
 export default function MessagesPage() {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { setActiveConversationId, decrementUnreadMessages } =
+    useInterestsNotifications();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedConversationId, setSelectedConversationId] = useState(1);
-  const [showProfile, setShowProfile] = useState(true);
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    string | null
+  >(null);
+  const [showMobileChat, setShowMobileChat] = useState(false);
   const [activeFilter, setActiveFilter] = useState<"ALL" | "READ" | "UNREAD">(
-    "ALL"
+    "ALL",
   );
 
-  const conversations: Conversation[] = [
-    {
-      id: 1,
-      name: "Regina Polyakova",
-      role: "Designer",
-      lastMessage:
-        "Oh, there is such a bunch of emails. I just can not find yours among...",
-      timeAgo: "10:25 am",
-      unread: 0,
-      isOnline: true,
-      isRead: true,
-      avatar:
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
-      messages: [
-        {
-          id: 1,
-          sender: "Regina Polyakova",
-          text: "Hello! Have you already prepared financial statements for the last month? I can't find it anywhere. Tomorrow it will be necessary to print all the documents and hand them over to the customer at the meeting.",
-          time: "Friday 09:45 am",
-          isMine: false,
-        },
-        {
-          id: 2,
-          sender: "Andrey Popov",
-          text: "Hi, of course I've made it! I sent you all the documents two days ago by email. This is what happens when you do not read messages for several days :) But it's ok, here you go, don't lose them.",
-          time: "Friday 10:11 am",
-          isMine: true,
-          isRead: true,
-        },
-        {
-          id: 3,
-          sender: "Andrey Popov",
-          text: "mytask.doc",
-          time: "Friday 10:11 am",
-          isMine: true,
-          isDocument: true,
-          documentName: "mytask.doc",
-        },
-        {
-          id: 4,
-          sender: "Regina Polyakova",
-          text: "Oh, there is such a bunch of emails. I just can not find yours among the other. I promise not to lose your letters anymore. See you at the meeting tomorrow!",
-          time: "Friday 10:25 am",
-          isMine: false,
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Oleg Shatrava",
-      role: "Manager",
-      lastMessage: "Is the date of the general meeting already known?",
-      timeAgo: "11:45 am",
-      unread: 3,
-      isOnline: false,
-      isRead: false,
-      avatar:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-      messages: [
-        {
-          id: 1,
-          sender: "Oleg Shatrava",
-          text: "Is the date of the general meeting already known?",
-          time: "11:45 am",
-          isMine: false,
-        },
-      ],
-    },
-    {
-      id: 3,
-      name: "Yakov Shubin",
-      role: "Art Director",
-      lastMessage:
-        "I came up with this idea after visiting an art exhibition...",
-      timeAgo: "09:55 am",
-      unread: 1,
-      isOnline: false,
-      isRead: false,
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80",
-      messages: [
-        {
-          id: 1,
-          sender: "Yakov Shubin",
-          text: "I came up with this idea after visiting an art exhibition...",
-          time: "09:55 am",
-          isMine: false,
-        },
-      ],
-    },
-    {
-      id: 4,
-      name: "Gleb Tarasov",
-      role: "Developer",
-      lastMessage: "Try to think over the chronology of the events again",
-      timeAgo: "09:45 am",
-      unread: 0,
-      isOnline: false,
-      isRead: true,
-      avatar:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
-      messages: [
-        {
-          id: 1,
-          sender: "Gleb Tarasov",
-          text: "Try to think over the chronology of the events again",
-          time: "09:45 am",
-          isMine: false,
-        },
-      ],
-    },
-    {
-      id: 5,
-      name: "Albert Konovalov",
-      role: "Product Manager",
-      lastMessage:
-        "Wow, I definitely like it! Check your schedule and ring me back",
-      timeAgo: "Yesterday 11:20 am",
-      unread: 0,
-      isOnline: false,
-      isRead: true,
-      avatar:
-        "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
-      messages: [
-        {
-          id: 1,
-          sender: "Albert Konovalov",
-          text: "Wow, I definitely like it! Check your schedule and ring me back",
-          time: "Yesterday 11:20 am",
-          isMine: false,
-        },
-      ],
-    },
-    {
-      id: 6,
-      name: "Vetta Tihonova",
-      role: "Marketing",
-      lastMessage:
-        "We need to consult three things in our actions tomorrow",
-      timeAgo: "Yesterday 08:00 am",
-      unread: 0,
-      isOnline: false,
-      isRead: true,
-      avatar:
-        "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
-      messages: [
-        {
-          id: 1,
-          sender: "Vetta Tihonova",
-          text: "We need to consult three things in our actions tomorrow",
-          time: "Yesterday 08:00 am",
-          isMine: false,
-        },
-      ],
-    },
-  ];
+  // Menu déroulant "+" dans la barre de saisie
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const profileData: ProfileData = {
-    name: "Regina Polyakova",
-    location: "Russia, Saint-Petersburg",
-    role: "Designer",
-    phone: "+1 812 546 28 53",
-    email: "regina@apptech.ru",
-    birthday: "26.07.1995",
+  // Saisie message normal
+  const [inputText, setInputText] = useState("");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [isRoomReady, setIsRoomReady] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+  const readMessageIdsRef = useRef(new Set<string>());
+
+  // Modale de proposition de contrat (Émetteur)
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [contractTitle, setContractTitle] = useState(
+    "Fourniture de produits de gros",
+  );
+  const [contractAmount, setContractAmount] = useState("5000000");
+  const [contractStartDate, setContractStartDate] = useState("2026-11-01");
+  const [contractEndDate, setContractEndDate] = useState("2027-11-01");
+  const [contractDescription, setContractDescription] = useState("");
+
+  // Modale de signature officielle & PDF (Destinataire)
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [selectedContractMessageId, setSelectedContractMessageId] = useState<
+    string | null
+  >(null);
+  const [signerName, setSignerName] = useState("");
+
+  const selectedConversation = conversations.find(
+    (conversation) => conversation.id === selectedConversationId,
+  );
+  useEffect(() => {
+    setActiveConversationId(selectedConversationId);
+    return () => setActiveConversationId(null);
+  }, [selectedConversationId, setActiveConversationId]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!user?.company?.id) {
+      setChatError(
+        "Connectez-vous avec un compte entreprise pour accéder aux messages.",
+      );
+      setIsLoading(false);
+      return;
+    }
+    const companyId = user.company.id;
+
+    let active = true;
+    async function loadConversations() {
+      setIsLoading(true);
+      setChatError(null);
+      try {
+        const [receivedResponse, sentResponse] = await Promise.all([
+          fetch(`${getApiRoot()}/interests/received`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
+          fetch(`${getApiRoot()}/interests/sent`, {
+            credentials: "include",
+            cache: "no-store",
+          }),
+        ]);
+        if (!receivedResponse.ok || !sentResponse.ok) {
+          throw new Error("Impossible de charger vos conversations.");
+        }
+
+        const [received, sent] = (await Promise.all([
+          receivedResponse.json(),
+          sentResponse.json(),
+        ])) as [InterestItem[], InterestItem[]];
+        const interests = Array.from(
+          new Map(
+            [...received, ...sent].map(
+              (interest) => [interest.id, interest] as const,
+            ),
+          ).values(),
+        ).sort(
+          (left, right) =>
+            new Date(right.createdAt).getTime() -
+            new Date(left.createdAt).getTime(),
+        );
+        const loadedConversations = interests.map((interest) => {
+          const partner =
+            interest.senderCompany.id === companyId
+              ? interest.receiverCompany
+              : interest.senderCompany;
+          return {
+            id: interest.id,
+            interest,
+            partner,
+            name: partner.companyName,
+            role: partner.sector || "Entreprise",
+            lastMessage:
+              interest.message ||
+              interest.announcement?.title ||
+              "Conversation ouverte",
+            timeAgo: new Date(interest.createdAt).toLocaleDateString("fr-FR"),
+            unread: 0,
+            isOnline: false,
+            isRead: true,
+            avatar: partner.logoUrl || partner.user?.avatarUrl || "/logo.png",
+            messages: [],
+          } satisfies Conversation;
+        });
+
+        if (active) {
+          setConversations(loadedConversations);
+          setSelectedConversationId((current) =>
+            loadedConversations.some(
+              (conversation) => conversation.id === current,
+            )
+              ? current
+              : (loadedConversations[0]?.id ?? null),
+          );
+        }
+      } catch (cause) {
+        if (active) {
+          setChatError(
+            cause instanceof Error
+              ? cause.message
+              : "Impossible de charger vos conversations.",
+          );
+        }
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    }
+
+    void loadConversations();
+    return () => {
+      active = false;
+    };
+  }, [isAuthLoading, user?.company?.id]);
+
+  useEffect(() => {
+    if (!selectedConversationId || !user?.company?.id) return;
+    const companyId = user.company.id;
+    let active = true;
+    setIsLoadingMessages(true);
+
+    async function loadHistory() {
+      try {
+        const response = await fetch(
+          `${getApiRoot()}/messages/${selectedConversationId}`,
+          { credentials: "include", cache: "no-store" },
+        );
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de charger l'historique de la conversation.",
+          );
+        }
+        const messages = (await response.json()) as ApiMessage[];
+        if (!active) return;
+
+        setConversations((current) =>
+          current.map((conversation) => {
+            if (conversation.id !== selectedConversationId) return conversation;
+            const loaded = messages.map((message) => ({
+              id: message.id,
+              createdAt: message.createdAt,
+              sender: message.sender.companyName,
+              text: message.content,
+              time: formatMessageTime(message.createdAt),
+              isMine: message.sender.id === companyId,
+              isRead:
+                message.isRead || readMessageIdsRef.current.has(message.id),
+              attachmentUrl: message.attachmentUrl,
+              attachmentName: message.attachmentName,
+              attachmentMimeType: message.attachmentMimeType,
+            }));
+            const merged = new Map(
+              [...loaded, ...conversation.messages].map(
+                (message) => [message.id, message] as const,
+              ),
+            );
+            const orderedMessages = [...merged.values()].sort(
+              (left, right) =>
+                new Date(left.createdAt).getTime() -
+                new Date(right.createdAt).getTime(),
+            );
+            const lastMessage = orderedMessages.at(-1);
+            return {
+              ...conversation,
+              messages: orderedMessages,
+              lastMessage: lastMessage
+                ? lastMessage.attachmentName
+                  ? `📎 ${lastMessage.attachmentName}`
+                  : lastMessage.text
+                : conversation.lastMessage,
+            };
+          }),
+        );
+      } catch (cause) {
+        if (active) {
+          setChatError(
+            cause instanceof Error
+              ? cause.message
+              : "Impossible de charger les messages.",
+          );
+        }
+      } finally {
+        if (active) setIsLoadingMessages(false);
+      }
+    }
+
+    void loadHistory();
+    return () => {
+      active = false;
+    };
+  }, [decrementUnreadMessages, selectedConversationId, user?.company?.id]);
+
+  useEffect(() => {
+    if (!selectedConversationId || !user?.company?.id) return;
+    const socket = io(getApiRoot().replace(/\/api$/i, ""), {
+      withCredentials: true,
+    });
+    socketRef.current = socket;
+    setIsSocketConnected(false);
+    setIsRoomReady(false);
+
+    socket.on("connect", () => {
+      setIsSocketConnected(true);
+      socket.emit(
+        "joinRoom",
+        { interestId: selectedConversationId },
+        (response: SocketAck) => {
+          if (!response?.ok) {
+            setChatError(
+              response?.error || "Accès à la conversation refusé.",
+            );
+            return;
+          }
+          setIsRoomReady(true);
+          if (document.visibilityState === "visible") {
+            socket.emit(
+              "markRead",
+              { interestId: selectedConversationId },
+              (readResponse: SocketAck) => {
+                if (readResponse?.ok) {
+                  decrementUnreadMessages(readResponse.markedReadCount ?? 0);
+                }
+              },
+            );
+          }
+        },
+      );
+    });
+    socket.on("disconnect", () => {
+      setIsSocketConnected(false);
+      setIsRoomReady(false);
+    });
+    socket.on("connect_error", () => {
+      setIsSocketConnected(false);
+      setIsRoomReady(false);
+      setChatError("Connexion au chat en temps réel impossible.");
+    });
+    socket.on(
+      "exception",
+      (error: { message?: string } | string) => {
+        const message = typeof error === "string" ? error : error?.message;
+        setChatError(
+          message && !/internal server error/i.test(message)
+            ? message
+            : "Une erreur est survenue dans le chat. Veuillez réessayer.",
+        );
+      },
+    );
+    socket.on("newMessage", (message: ApiMessage) => {
+      const newMessage: MessageItem = {
+        id: message.id,
+        createdAt: message.createdAt,
+        sender: message.sender.companyName,
+        text: message.content,
+        time: formatMessageTime(message.createdAt),
+        isMine: message.sender.id === user.company?.id,
+        isRead:
+          message.isRead || readMessageIdsRef.current.has(message.id),
+        attachmentUrl: message.attachmentUrl,
+        attachmentName: message.attachmentName,
+        attachmentMimeType: message.attachmentMimeType,
+      };
+      setConversations((current) =>
+        current.map((conversation) => {
+          if (conversation.id !== selectedConversationId) return conversation;
+          if (conversation.messages.some((item) => item.id === newMessage.id)) {
+            return conversation;
+          }
+          return {
+            ...conversation,
+            lastMessage: newMessage.attachmentName
+              ? `📎 ${newMessage.attachmentName}`
+              : newMessage.text,
+            timeAgo: "À l'instant",
+            messages: [...conversation.messages, newMessage],
+          };
+        }),
+      );
+      if (
+        message.sender.id !== user.company?.id &&
+        document.visibilityState === "visible"
+      ) {
+        socket.emit(
+          "markRead",
+          { interestId: selectedConversationId },
+          (response: SocketAck) => {
+            if (response?.ok) {
+              decrementUnreadMessages(response.markedReadCount ?? 0);
+            }
+          },
+        );
+      }
+    });
+    socket.on(
+      "messagesRead",
+      (data: { interestId: string; messageIds: string[] }) => {
+        if (data.interestId !== selectedConversationId) return;
+        data.messageIds.forEach((messageId) =>
+          readMessageIdsRef.current.add(messageId),
+        );
+        setConversations((current) =>
+          current.map((conversation) =>
+            conversation.id === data.interestId
+              ? {
+                  ...conversation,
+                  messages: conversation.messages.map((message) =>
+                    data.messageIds.includes(message.id)
+                      ? { ...message, isRead: true }
+                      : message,
+                  ),
+                }
+              : conversation,
+          ),
+        );
+      },
+    );
+
+    const markVisibleConversationRead = () => {
+      if (document.visibilityState !== "visible" || !socket.connected) return;
+      socket.emit(
+        "markRead",
+        { interestId: selectedConversationId },
+        (response: SocketAck) => {
+          if (response?.ok) {
+            decrementUnreadMessages(response.markedReadCount ?? 0);
+          }
+        },
+      );
+    };
+    document.addEventListener("visibilitychange", markVisibleConversationRead);
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        markVisibleConversationRead,
+      );
+      socket.emit("leaveRoom", { interestId: selectedConversationId });
+      socket.disconnect();
+      if (socketRef.current === socket) socketRef.current = null;
+      setIsSocketConnected(false);
+      setIsRoomReady(false);
+    };
+  }, [
+    decrementUnreadMessages,
+    selectedConversationId,
+    user?.company?.id,
+  ]);
+
+  const sendTextMessage = (text: string) => {
+    const content = text.trim();
+    if (!content) return false;
+    if (
+      !selectedConversationId ||
+      !socketRef.current?.connected ||
+      !isRoomReady
+    ) {
+      setChatError(
+        "La connexion à la conversation n'est pas prête. Réessayez.",
+      );
+      return false;
+    }
+
+    setChatError(null);
+    socketRef.current.emit(
+      "sendMessage",
+      { interestId: selectedConversationId, content },
+      (response: SocketAck) => {
+        if (!response?.ok) {
+          setChatError(response?.error || "Le message n'a pas pu être envoyé.");
+          return;
+        }
+        if (inputText.trim() === content) setInputText("");
+      },
+    );
+    return true;
   };
 
-  // Filtrage : recherche + filtre lu/non lu
+  const handleSendMessage = () => {
+    sendTextMessage(inputText);
+  };
+
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    setShowPlusMenu(false);
+    if (!file || !selectedConversationId) return;
+
+    setChatError(null);
+    setIsUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(
+        `${getApiRoot()}/messages/${selectedConversationId}/attachments`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          "Le fichier n’a pas pu être envoyé. Vérifiez le format et la taille (10 Mo maximum).",
+        );
+      }
+      const uploadedMessage = (await response.json()) as ApiMessage;
+      const attachmentMessage: MessageItem = {
+        id: uploadedMessage.id,
+        createdAt: uploadedMessage.createdAt,
+        sender: uploadedMessage.sender.companyName,
+        text: uploadedMessage.content,
+        time: formatMessageTime(uploadedMessage.createdAt),
+        isMine: true,
+        isRead:
+          uploadedMessage.isRead ||
+          readMessageIdsRef.current.has(uploadedMessage.id),
+        attachmentUrl: uploadedMessage.attachmentUrl,
+        attachmentName: uploadedMessage.attachmentName,
+        attachmentMimeType: uploadedMessage.attachmentMimeType,
+      };
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversationId
+            ? {
+                ...conversation,
+                lastMessage: `📎 ${uploadedMessage.attachmentName || file.name}`,
+                timeAgo: "À l'instant",
+                messages: conversation.messages.some(
+                  (message) => message.id === attachmentMessage.id,
+                )
+                  ? conversation.messages
+                  : [...conversation.messages, attachmentMessage],
+              }
+            : conversation,
+        ),
+      );
+    } catch {
+      setChatError(
+        "Le fichier n’a pas pu être envoyé. Formats acceptés : images, PDF, Word, Excel, PowerPoint, TXT et CSV (10 Mo maximum).",
+      );
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  const handleSendContract = (e: React.FormEvent) => {
+    e.preventDefault();
+    const content = [
+      `Proposition de contrat : ${contractTitle}`,
+      `Description : ${contractDescription.trim()}`,
+      `Montant : ${Number(contractAmount).toLocaleString("fr-FR")} Ar`,
+      `Période : ${contractStartDate} au ${contractEndDate}`,
+    ].join("\n");
+    if (sendTextMessage(content)) setShowContractModal(false);
+  };
+
+  const handleConfirmOfficialSignature = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContractMessageId) return;
+    if (sendTextMessage(`Proposition de contrat signée par ${signerName}.`)) {
+      setShowSignatureModal(false);
+      setSignerName("");
+      setSelectedContractMessageId(null);
+    }
+  };
+
+  // Filtrage des conversations
   const filteredConversations = conversations.filter((conv) => {
     const matchesSearch =
       conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -245,25 +678,39 @@ export default function MessagesPage() {
     return 0;
   };
 
-  const selectedConversation = conversations.find(
-    (c) => c.id === selectedConversationId
-  );
+  const contractToSign = selectedConversation?.messages.find(
+    (m) => m.id === selectedContractMessageId,
+  )?.contractDetails;
 
   return (
-    <div className="fixed inset-x-0 top-20 bottom-0 bg-slate-100 p-4 overflow-hidden">
-      <div className="w-full h-full bg-white rounded-2xl border border-slate-200 shadow-lg flex overflow-hidden">
+    <div className="fixed inset-x-0 top-20 bottom-0 overflow-hidden bg-slate-100 p-0 font-sans">
+      <div
+        data-actor-card
+        className="relative flex h-full w-full overflow-hidden bg-white"
+      >
+        {/* Input file caché pour l'envoi de fichier */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+
         {/* ═══════════════════════════════════════════════
             LISTE DES CONVERSATIONS
             ═══════════════════════════════════════════════ */}
-        <div className="w-[360px] border-r border-slate-200 flex flex-col bg-white shrink-0">
-          {/* En-tête */}
+        <div
+          className={`w-full shrink-0 flex-col border-r border-slate-200 bg-white md:w-[360px] ${
+            showMobileChat ? "hidden md:flex" : "flex"
+          }`}
+        >
           <div className="px-5 py-4 shrink-0 border-b border-slate-100">
             <h1 className="text-lg font-extrabold text-slate-900">
-              Messages
+              Messages & Négociations
             </h1>
           </div>
 
-          {/* Recherche */}
           <div className="px-4 py-3 shrink-0 border-b border-slate-100">
             <div className="relative">
               <Search
@@ -272,7 +719,7 @@ export default function MessagesPage() {
               />
               <input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder="Rechercher une conversation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-100 border border-transparent text-xs font-medium text-slate-800 placeholder-slate-500 focus:outline-none focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition"
@@ -280,7 +727,6 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Filtres Lus / Non lus */}
           <div className="px-4 py-3 shrink-0 border-b border-slate-100 flex items-center gap-1.5">
             {[
               { label: "Tous", value: "ALL" as const },
@@ -313,15 +759,21 @@ export default function MessagesPage() {
             })}
           </div>
 
-          {/* Liste */}
           <div className="flex-1 overflow-y-auto">
-            {filteredConversations.length > 0 ? (
+            {isLoading ? (
+              <div className="p-8 text-center text-xs text-slate-400">
+                Chargement des conversations...
+              </div>
+            ) : filteredConversations.length > 0 ? (
               filteredConversations.map((conv) => {
                 const isSelected = conv.id === selectedConversationId;
                 return (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConversationId(conv.id)}
+                    onClick={() => {
+                      setSelectedConversationId(conv.id);
+                      setShowMobileChat(true);
+                    }}
                     className={`w-full text-left px-4 py-3 border-b border-slate-50 flex items-start gap-3 transition ${
                       isSelected ? "bg-emerald-50/70" : "hover:bg-slate-50"
                     }`}
@@ -380,8 +832,13 @@ export default function MessagesPage() {
             ) : (
               <div className="p-8 text-center">
                 <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-400 font-medium">
-                  Aucune conversation
+                <p
+                  role={chatError ? "alert" : undefined}
+                  className={`text-xs font-medium ${
+                    chatError ? "text-red-600" : "text-slate-400"
+                  }`}
+                >
+                  {chatError || "Aucune conversation"}
                 </p>
               </div>
             )}
@@ -391,19 +848,31 @@ export default function MessagesPage() {
         {/* ═══════════════════════════════════════════════
             ZONE DE CHAT
             ═══════════════════════════════════════════════ */}
-        <div className="flex-1 flex flex-col bg-slate-50 min-w-0">
+        <div
+          className={`min-w-0 flex-1 flex-col bg-slate-50 ${
+            showMobileChat ? "flex" : "hidden md:flex"
+          }`}
+        >
           {selectedConversation ? (
             <>
               {/* En-tête */}
-              <div className="px-5 py-3 bg-white border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-5">
                 <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileChat(false)}
+                    aria-label="Retour"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 md:hidden"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
                   <div className="relative shrink-0">
                     <img
                       alt={selectedConversation.name}
                       className="w-10 h-10 rounded-full object-cover"
                       src={selectedConversation.avatar}
                     />
-                    {selectedConversation.isOnline && (
+                    {isSocketConnected && (
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
                     )}
                   </div>
@@ -415,89 +884,200 @@ export default function MessagesPage() {
                       </h2>
                       <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     </div>
-                    <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                      {selectedConversation.isOnline ? (
-                        <>
-                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                          Online
-                        </>
-                      ) : (
-                        "Vu(e) récemment"
-                      )}
-                    </p>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setShowProfile(!showProfile)}
-                  aria-label="Info"
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition ${
-                    showProfile
-                      ? "bg-emerald-100 text-emerald-600"
-                      : "hover:bg-slate-100 text-slate-500"
-                  }`}
-                >
-                  <Info className="w-4 h-4" strokeWidth={2.2} />
-                </button>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-                <div className="flex items-center justify-center">
-                  <span className="text-[11px] font-medium text-slate-400 bg-slate-100 rounded-lg px-3 py-1">
-                    Today
-                  </span>
-                </div>
-
-                {selectedConversation.messages.map((msg) => (
+              <div className="flex-1 space-y-4 overflow-y-auto px-3 py-5 sm:px-6">
+                {chatError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700"
+                  >
+                    {chatError}
+                  </div>
+                )}
+                {isLoadingMessages && (
+                  <p className="text-center text-xs text-slate-400">
+                    Chargement des messages...
+                  </p>
+                )}
+                {selectedConversation.messages.map((msg, index) => (
                   <div key={msg.id} className="flex flex-col gap-1">
-                    <span
-                      className={`text-[10px] font-bold text-slate-400 px-1 ${
-                        msg.isMine ? "text-right" : "text-left"
-                      }`}
-                    >
-                      {msg.sender}
-                    </span>
+                    {shouldShowMessageDate(
+                      msg,
+                      selectedConversation.messages[index - 1],
+                    ) && (
+                      <div className="flex items-center justify-center py-1">
+                        <span className="text-[11px] font-medium text-slate-400 bg-slate-100 rounded-lg px-3 py-1">
+                          {formatMessageDate(msg.createdAt)}
+                        </span>
+                      </div>
+                    )}
+                    {msg.isMine && (
+                      <span className="px-1 text-right text-[10px] font-bold text-slate-400">
+                        Vous
+                      </span>
+                    )}
 
                     <div
                       className={`flex gap-2 ${
                         msg.isMine ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {!msg.isMine && (
-                        <img
-                          alt={msg.sender}
-                          className="w-8 h-8 rounded-full object-cover shrink-0"
-                          src={selectedConversation.avatar}
-                        />
-                      )}
-
-                      <div className="max-w-[70%] flex flex-col">
-                        {msg.isDocument ? (
-                          <div className="bg-emerald-500 rounded-lg p-2.5 flex items-center gap-2.5 min-w-[180px]">
-                            <div className="w-8 h-8 rounded bg-white/20 flex items-center justify-center shrink-0">
-                              <FileText className="w-4 h-4 text-white" />
+                      <div className="max-w-[80%] flex flex-col">
+                        {msg.isContract && msg.contractDetails ? (
+                          /* Rendu Carte Contrat B2B Officiel */
+                          <div className="bg-white rounded-2xl border border-emerald-200 p-4 shadow-sm space-y-3 min-w-[280px] sm:min-w-[320px]">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                  <FileSignature className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-extrabold text-slate-900">
+                                    {msg.contractDetails.title}
+                                  </h4>
+                                  <span className="text-[10px] text-slate-400">
+                                    Accord B2B - Chambre de Commerce
+                                  </span>
+                                </div>
+                              </div>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                  msg.contractDetails.status === "ACCEPTED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}
+                              >
+                                {msg.contractDetails.status === "ACCEPTED"
+                                  ? "Signé & Actif"
+                                  : "En attente"}
+                              </span>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-white truncate">
-                                {msg.documentName}
-                              </p>
-                              <p className="text-[9px] text-emerald-100">
-                                Document
-                              </p>
+
+                            <div className="space-y-1.5 text-xs text-slate-600">
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400 flex items-center gap-1">
+                                  <Coins className="w-3.5 h-3.5" /> Montant :
+                                </span>
+                                <strong className="text-slate-900 font-bold">
+                                  {msg.contractDetails.amount.toLocaleString(
+                                    "fr-FR",
+                                  )}{" "}
+                                  Ar
+                                </strong>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400 flex items-center gap-1">
+                                  <Calendar className="w-3.5 h-3.5" /> Période :
+                                </span>
+                                <span className="text-slate-700 font-medium">
+                                  {msg.contractDetails.startDate} ➔{" "}
+                                  {msg.contractDetails.endDate}
+                                </span>
+                              </div>
+                              {msg.contractDetails.signerName && (
+                                <div className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold pt-1">
+                                  <ShieldCheck className="w-3.5 h-3.5" /> Validé
+                                  par {msg.contractDetails.signerName}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                              {!msg.isMine &&
+                                msg.contractDetails.status === "PENDING" && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedContractMessageId(msg.id);
+                                      setShowSignatureModal(true);
+                                    }}
+                                    className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+                                  >
+                                    <FileCheck className="w-3.5 h-3.5" />
+                                    <span>
+                                      Accepter & Signer officiellement
+                                    </span>
+                                  </button>
+                                )}
+                              {msg.contractDetails.status === "ACCEPTED" && (
+                                <button
+                                  onClick={() =>
+                                    alert(
+                                      "Téléchargement du contrat PDF officiel...",
+                                    )
+                                  }
+                                  className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                >
+                                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Télécharger le Contrat PDF (CCI)</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         ) : (
                           <div
-                            className={`px-4 py-2.5 rounded-2xl ${
-                              msg.isMine
-                                ? "bg-emerald-500 text-white"
-                                : "bg-white text-slate-800 border border-slate-100"
+                            className={`${
+                              msg.attachmentUrl
+                                ? "border-0 bg-transparent p-0"
+                                : `px-4 py-2.5 rounded-2xl ${
+                                    msg.isMine
+                                      ? "bg-emerald-500 text-white"
+                                      : "bg-white text-slate-800 border border-slate-100"
+                                  }`
                             }`}
                           >
-                            <p className="text-xs leading-relaxed">
-                              {msg.text}
-                            </p>
+                            {msg.attachmentUrl ? (
+                              msg.attachmentMimeType?.startsWith("image/") ? (
+                                <a
+                                  href={msg.attachmentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block"
+                                >
+                                  <img
+                                    src={msg.attachmentUrl}
+                                    alt="Image envoyée"
+                                    className="max-h-64 max-w-full rounded-lg object-contain"
+                                  />
+                                </a>
+                              ) : msg.attachmentMimeType ===
+                                "application/pdf" ? (
+                                <a
+                                  href={msg.attachmentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  aria-label="Ouvrir le document PDF"
+                                  className="inline-flex flex-col items-center gap-1"
+                                >
+                                  <img
+                                    src="/images/pdf-file.svg"
+                                    alt="Document PDF"
+                                    className="h-32 w-28 rounded-lg object-contain"
+                                  />
+                                  <span className="max-w-40 break-all text-center text-xs font-medium text-slate-600">
+                                    {msg.attachmentName || "Document PDF"}
+                                  </span>
+                                </a>
+                              ) : (
+                                <a
+                                  href={msg.attachmentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-xs font-medium underline break-all"
+                                >
+                                  <FileText className="h-4 w-4 shrink-0" />
+                                  {msg.attachmentName || msg.text}
+                                </a>
+                              )
+                            ) : (
+                              <p className="text-xs leading-relaxed whitespace-pre-wrap">
+                                {msg.text}
+                              </p>
+                            )}
                           </div>
                         )}
 
@@ -511,10 +1091,15 @@ export default function MessagesPage() {
                           </span>
                           {msg.isMine &&
                             (msg.isRead ? (
-                              <CheckCheck
-                                className="w-3 h-3 text-emerald-500"
-                                strokeWidth={2.5}
-                              />
+                              <>
+                                <CheckCheck
+                                  className="w-3 h-3 text-emerald-500"
+                                  strokeWidth={2.5}
+                                />
+                                <span className="text-[9px] font-semibold text-emerald-600">
+                                  Vu
+                                </span>
+                              </>
                             ) : (
                               <Check
                                 className="w-3 h-3 text-slate-400"
@@ -524,43 +1109,97 @@ export default function MessagesPage() {
                         </div>
                       </div>
 
-                      {msg.isMine && (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                          AP
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
-
-                {/* Typing */}
-                <div className="flex items-center gap-2 px-2">
-                  <img
-                    alt={selectedConversation.name}
-                    className="w-6 h-6 rounded-full object-cover"
-                    src={selectedConversation.avatar}
-                  />
-                  <p className="text-[10px] text-slate-400 italic">
-                    {selectedConversation.name.split(" ")[0]} is typing...
-                  </p>
-                </div>
               </div>
 
-              {/* Zone de saisie flottante */}
-              <div className="px-6 pb-6 pt-2 shrink-0 relative">
-                <div className="flex items-center gap-2 bg-white rounded-full border border-slate-200 shadow-lg hover:shadow-xl transition-shadow p-1.5 pl-5">
+              {/* ═══════════════════════════════════════════════════════════
+                  ZONE DE SAISIE AVEC BOUTON "+" À L'EXTRÊME GAUCHE
+                  ═══════════════════════════════════════════════════════════ */}
+              <div className="relative shrink-0 px-2 pb-3 pt-2 sm:px-6 sm:pb-6">
+                <div className="relative flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 pl-2 shadow-lg transition-shadow hover:shadow-xl">
+                  {/* 🟢 BOUTON "+" AVEC MENU DÉROULANT (Extrême gauche) */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowPlusMenu(!showPlusMenu)}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition shrink-0 ${
+                        showPlusMenu
+                          ? "bg-emerald-600 text-white rotate-45"
+                          : "bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600"
+                      }`}
+                      title="Actions supplémentaires"
+                    >
+                      <Plus
+                        className="w-5 h-5 transition-transform duration-200"
+                        strokeWidth={2.5}
+                      />
+                    </button>
+
+                    {/* MENU DÉROULANT DES ACTIONS DU BOUTON "+" */}
+                    {showPlusMenu && (
+                      <div className="absolute bottom-12 left-0 z-50 w-64 bg-white rounded-2xl p-2 shadow-2xl border border-slate-100 space-y-1 animate-in fade-in slide-in-from-bottom-3 duration-200">
+                        {/* Option 1 : Proposer un contrat */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPlusMenu(false);
+                            setShowContractModal(true);
+                          }}
+                          className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 text-slate-900 transition"
+                        >
+                          <FileSignature className="w-4 h-4 shrink-0 text-black" />
+                          <p className="text-xs font-bold leading-tight">
+                            Proposer un contrat
+                          </p>
+                        </button>
+
+                        {/* Option 2 : Envoyer un fichier */}
+                        <button
+                          type="button"
+                          disabled={isUploadingFile}
+                          onClick={() => {
+                            setShowPlusMenu(false);
+                            fileInputRef.current?.click();
+                          }}
+                          className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 text-slate-900 transition disabled:cursor-wait disabled:opacity-50"
+                        >
+                          <Paperclip className="w-4 h-4 shrink-0 text-black" />
+                          <p className="text-xs font-bold leading-tight">
+                            Envoyer un fichier
+                          </p>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Champ de texte */}
                   <input
                     type="text"
-                    placeholder="Add commentaries..."
-                    className="flex-1 bg-transparent text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none py-2"
+                    placeholder="Écrire un message ou négocier les termes..."
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                    className="flex-1 bg-transparent text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none py-2 px-2"
                   />
+
+                  {isUploadingFile && (
+                    <span
+                      role="status"
+                      className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-medium text-slate-500"
+                    >
+                      <LoaderCircle
+                        aria-hidden="true"
+                        className="h-4 w-4 animate-spin text-emerald-600"
+                      />
+                      Envoi en cours...
+                    </span>
+                  )}
+
+                  {/* Bouton d'envoi principal */}
                   <button
-                    aria-label="Joindre"
-                    className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition shrink-0"
-                  >
-                    <Paperclip className="w-4 h-4" strokeWidth={2.2} />
-                  </button>
-                  <button
+                    onClick={handleSendMessage}
                     aria-label="Envoyer"
                     className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white transition shrink-0 shadow-md shadow-emerald-500/30"
                   >
@@ -571,110 +1210,136 @@ export default function MessagesPage() {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-sm text-slate-400">
-                Sélectionnez une conversation
+              <p
+                role={chatError ? "alert" : undefined}
+                className={`text-sm ${
+                  chatError ? "text-red-600" : "text-slate-400"
+                }`}
+              >
+                {chatError ||
+                  (isLoading
+                    ? "Chargement de vos conversations..."
+                    : "Sélectionnez une conversation")}
               </p>
             </div>
           )}
         </div>
 
         {/* ═══════════════════════════════════════════════
-            PANNEAU PROFIL (droite)
+            MODALE 1 : PROPOSITION DE CONTRAT (Émetteur)
             ═══════════════════════════════════════════════ */}
-        {showProfile && selectedConversation && (
-          <div className="hidden xl:flex w-[320px] border-l border-slate-200 bg-white flex-col shrink-0">
-            <div className="flex justify-end p-3">
-              <button
-                onClick={() => setShowProfile(false)}
-                aria-label="Fermer"
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition"
+        {showContractModal && (
+          <ContractProposalModal
+            contractTitle={contractTitle}
+            contractDescription={contractDescription}
+            contractAmount={contractAmount}
+            contractStartDate={contractStartDate}
+            contractEndDate={contractEndDate}
+            onTitleChange={setContractTitle}
+            onDescriptionChange={setContractDescription}
+            onAmountChange={setContractAmount}
+            onStartDateChange={setContractStartDate}
+            onEndDateChange={setContractEndDate}
+            onClose={() => setShowContractModal(false)}
+            onSubmit={handleSendContract}
+          />
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            MODALE 2 : VALIDATION JURIDIQUE & SIGNATURE OFFICIELLE (Destinataire)
+            ════════════════════════════════════════════════════════════════ */}
+        {showSignatureModal && contractToSign && (
+          <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    Validation Juridique et Signature
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Engagement officiel enregistré auprès de la CCI
+                  </p>
+                </div>
+              </div>
+
+              {/* Récapitulatif officiel */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Objet du contrat :</span>
+                  <span className="font-bold text-slate-900">
+                    {contractToSign.title}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Montant total validé :</span>
+                  <span className="font-extrabold text-emerald-600">
+                    {contractToSign.amount.toLocaleString("fr-FR")} Ar
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Période d'engagement :</span>
+                  <span className="font-semibold text-slate-700">
+                    {contractToSign.startDate} au {contractToSign.endDate}
+                  </span>
+                </div>
+              </div>
+
+              {/* Formulaire de signature du gérant */}
+              <form
+                onSubmit={handleConfirmOfficialSignature}
+                className="space-y-3"
               >
-                <X className="w-4 h-4" strokeWidth={2.2} />
-              </button>
-            </div>
-
-            <div className="flex flex-col items-center px-4 pb-4">
-              <img
-                alt={profileData.name}
-                className="w-24 h-24 rounded-full object-cover mb-3"
-                src={selectedConversation.avatar}
-              />
-              <h3 className="text-base font-bold text-slate-900 mb-1">
-                {profileData.name}
-              </h3>
-              <div className="flex items-center gap-1 text-[11px] text-slate-500 mb-0.5">
-                <MapPin className="w-3 h-3" />
-                {profileData.location}
-              </div>
-              <p className="text-[11px] text-slate-400">{profileData.role}</p>
-            </div>
-
-            <div className="px-4 py-3 border-t border-slate-100 space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <Phone className="w-3.5 h-3.5 text-slate-500" />
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Nom du représentant légal / Gérant
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={signerName}
+                    onChange={(e) => setSignerName(e.target.value)}
+                    placeholder="Ex: RAKOTO Jean"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:bg-white focus:border-emerald-500 focus:outline-none"
+                  />
                 </div>
-                <span className="text-xs text-slate-700">
-                  {profileData.phone}
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <Mail className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-                <span className="text-xs text-slate-700">
-                  {profileData.email}
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-                <span className="text-xs text-slate-700">
-                  {profileData.birthday}
-                </span>
-              </div>
-            </div>
 
-            <div className="px-4 py-3 border-t border-slate-100 flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Attachment Files
-                </h4>
-                <button className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600">
-                  View all
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=200&q=80",
-                  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=200&q=80",
-                  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=200&q=80",
-                  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=200&q=80",
-                  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=200&q=80",
-                  "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=200&q=80",
-                ].map((src, i) => (
-                  <div
-                    key={i}
-                    className="aspect-square rounded-lg overflow-hidden bg-slate-100 relative group cursor-pointer"
+                <div className="flex items-start gap-2.5 pt-1">
+                  <input
+                    type="checkbox"
+                    id="legal-agree-checkbox"
+                    required
+                    className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <label
+                    htmlFor="legal-agree-checkbox"
+                    className="text-[11px] text-slate-600 leading-tight"
                   >
-                    <img
-                      src={src}
-                      alt={`Attachment ${i + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    {i % 3 === 1 && (
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                        <Play
-                          className="w-4 h-4 text-white"
-                          fill="currentColor"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    Je certifie être le représentant légal habilité, j'engage
+                    officiellement mon entreprise et j'accepte la génération
+                    automatique du document PDF légal.
+                  </label>
+                </div>
+
+                <div className="pt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSignatureModal(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-1.5"
+                  >
+                    <FileCheck className="w-4 h-4" />
+                    <span>Signer numériquement</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

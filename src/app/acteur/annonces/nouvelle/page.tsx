@@ -40,7 +40,7 @@ export default function NouvelleAnnoncePage() {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -51,7 +51,6 @@ export default function NouvelleAnnoncePage() {
     setError(null);
 
     try {
-      // Utilisation de la variable d'environnement du fichier .env.local
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
       const res = await fetch(`${apiUrl}/announcements`, {
@@ -59,7 +58,7 @@ export default function NouvelleAnnoncePage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // Indispensable pour transmettre automatiquement le cookie HttpOnly
+        credentials: "include",
         body: JSON.stringify({
           ...formData,
           deadline: formData.deadline
@@ -71,11 +70,10 @@ export default function NouvelleAnnoncePage() {
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(
-          errData.message || "Erreur lors de la création de l'annonce"
+          errData.message || "Erreur lors de la création de l'annonce",
         );
       }
 
-      // Redirection vers le fil d'actualité après succès
       router.push("/acteur/opportunites");
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue sur le serveur");
@@ -86,55 +84,55 @@ export default function NouvelleAnnoncePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pt-4 pb-12 px-4 sm:px-6">
-      {/* Bouton retour */}
+      {/* ─── Bouton retour ─── */}
       <div>
         <Link
           href="/acteur/opportunites"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-emerald-600 transition"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-emerald-600 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Retour aux opportunités</span>
         </Link>
       </div>
 
-      {/* En-tête */}
-      <div className="bg-white p-6 sm:p-8 rounded-[32px] border border-slate-100 shadow-xs space-y-2">
+      {/* ─── En-tête ─── */}
+      <div data-actor-card className="bg-white p-6 sm:p-8 rounded-[32px] border border-[#F2F2F2] space-y-2">
         <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
           <Megaphone className="w-5 h-5" />
         </div>
         <h1 className="text-xl font-extrabold text-slate-950 tracking-tight">
           Publier une nouvelle opportunité B2B
         </h1>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400">
           Proposez une offre ou exprimez un besoin de collaboration auprès du
-          réseau d'entreprises CCI.
+          réseau d&apos;entreprises CCI.
         </p>
       </div>
 
-      {/* Formulaire */}
+      {/* ─── Formulaire ─── */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-6 sm:p-8 rounded-[32px] border border-slate-100 shadow-xs space-y-5"
+        className="bg-white p-6 sm:p-8 rounded-[32px] border border-[#F2F2F2] space-y-5"
       >
         {error && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+          <div className="p-4 rounded-2xl bg-rose-50 border border-[#F2F2F2] text-xs font-semibold text-rose-700">
             {error}
           </div>
         )}
 
-        {/* Type d'annonce : Offre ou Demande */}
+        {/* ─── Type d'annonce : Offre ou Demande ─── */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Type d'annonce
+            Type d&apos;annonce
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => setFormData({ ...formData, type: "OFFRE" })}
-              className={`py-3 px-4 rounded-2xl text-xs font-bold border transition ${
+              className={`py-3 px-4 rounded-2xl text-xs font-bold border transition-colors ${
                 formData.type === "OFFRE"
-                  ? "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs"
-                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  ? "bg-emerald-50 border-[#6FCF97] text-emerald-800"
+                  : "bg-[#FAFAFA] border-[#F2F2F2] text-slate-500 hover:bg-[#F5F5F5]"
               }`}
             >
               OFFRE (Je propose)
@@ -142,10 +140,10 @@ export default function NouvelleAnnoncePage() {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, type: "DEMANDE" })}
-              className={`py-3 px-4 rounded-2xl text-xs font-bold border transition ${
+              className={`py-3 px-4 rounded-2xl text-xs font-bold border transition-colors ${
                 formData.type === "DEMANDE"
-                  ? "bg-amber-50 border-amber-500 text-amber-800 shadow-xs"
-                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  ? "bg-amber-50 border-amber-400 text-amber-800"
+                  : "bg-[#FAFAFA] border-[#F2F2F2] text-slate-500 hover:bg-[#F5F5F5]"
               }`}
             >
               DEMANDE (Je recherche)
@@ -153,11 +151,11 @@ export default function NouvelleAnnoncePage() {
           </div>
         </div>
 
-        {/* Titre */}
+        {/* ─── Titre ─── */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5 text-slate-400" />
-            Titre de l'opportunité *
+            Titre de l&apos;opportunité *
           </label>
           <input
             type="text"
@@ -166,11 +164,11 @@ export default function NouvelleAnnoncePage() {
             placeholder="Ex: Recherche sous-traitant transformation de thé..."
             value={formData.title}
             onChange={handleChange}
-            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+            className="w-full px-4 py-3 rounded-2xl bg-[#FAFAFA] border border-[#F2F2F2] text-xs font-medium text-slate-800 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-[#6FCF97] transition-colors"
           />
         </div>
 
-        {/* Catégorie */}
+        {/* ─── Catégorie ─── */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <Tag className="w-3.5 h-3.5 text-slate-400" />
@@ -180,7 +178,7 @@ export default function NouvelleAnnoncePage() {
             name="category"
             value={formData.category}
             onChange={handleChange}
-            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition cursor-pointer"
+            className="w-full px-4 py-3 rounded-2xl bg-[#FAFAFA] border border-[#F2F2F2] text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-[#6FCF97] transition-colors cursor-pointer"
           >
             {categoriesList.map((cat) => (
               <option key={cat} value={cat}>
@@ -190,7 +188,7 @@ export default function NouvelleAnnoncePage() {
           </select>
         </div>
 
-        {/* Description */}
+        {/* ─── Description ─── */}
         <div className="space-y-1.5">
           <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Description détaillée *
@@ -202,11 +200,11 @@ export default function NouvelleAnnoncePage() {
             placeholder="Décrivez précisément votre besoin, vos critères et vos attentes..."
             value={formData.description}
             onChange={handleChange}
-            className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition resize-none"
+            className="w-full px-4 py-3 rounded-2xl bg-[#FAFAFA] border border-[#F2F2F2] text-xs font-medium text-slate-800 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-[#6FCF97] transition-colors resize-none"
           />
         </div>
 
-        {/* Localisation & Date limite */}
+        {/* ─── Localisation & Date limite ─── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -219,7 +217,7 @@ export default function NouvelleAnnoncePage() {
               placeholder="Ex: Fianarantsoa, Antsirabe..."
               value={formData.specificLocation}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+              className="w-full px-4 py-3 rounded-2xl bg-[#FAFAFA] border border-[#F2F2F2] text-xs font-medium text-slate-800 placeholder-slate-300 focus:outline-none focus:bg-white focus:border-[#6FCF97] transition-colors"
             />
           </div>
 
@@ -233,23 +231,23 @@ export default function NouvelleAnnoncePage() {
               name="deadline"
               value={formData.deadline}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-500 focus:bg-white transition"
+              className="w-full px-4 py-3 rounded-2xl bg-[#FAFAFA] border border-[#F2F2F2] text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-[#6FCF97] transition-colors"
             />
           </div>
         </div>
 
-        {/* Boutons d'action */}
-        <div className="pt-4 flex items-center justify-end gap-3">
+        {/* ─── Boutons d'action ─── */}
+        <div className="pt-4 flex flex-col-reverse items-stretch justify-end gap-3 sm:flex-row sm:items-center">
           <Link
             href="/acteur/opportunites"
-            className="px-5 py-3 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
+            className="rounded-2xl border border-[#F2F2F2] px-5 py-3 text-center text-xs font-bold text-slate-500 transition-colors hover:bg-[#FAFAFA] sm:text-left"
           >
             Annuler
           </Link>
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-bold text-white transition hover:bg-emerald-700 active:scale-95 disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -259,7 +257,7 @@ export default function NouvelleAnnoncePage() {
             ) : (
               <>
                 <Send className="w-4 h-4" />
-                <span>Publier l'annonce</span>
+                <span>Publier l&apos;annonce</span>
               </>
             )}
           </button>

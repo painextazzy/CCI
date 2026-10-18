@@ -27,6 +27,235 @@ body {
   overflow-x: hidden;
 }
 
+.actor-theme {
+  --background: #fff;
+  --foreground: #161B22;
+  --card: #fff;
+  --card-foreground: #161B22;
+  --popover: #fff;
+  --popover-foreground: #161B22;
+  --primary: #2EA043;
+  --primary-foreground: #fff;
+  --secondary: #F2F2F2;
+  --secondary-foreground: #161B22;
+  --muted: #F2F2F2;
+  --muted-foreground: #57606a;
+  --accent: #F2F2F2;
+  --accent-foreground: #161B22;
+  --border: #d0d7de;
+  --input: #d0d7de;
+  --ring: #2EA043;
+  --radius: 2rem;
+  color: var(--foreground);
+  background-color: var(--background);
+}
+
+.actor-theme header {
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgb(24 24 27 / 4%);
+}
+
+.actor-theme nav a [class~="rounded-full"] {
+  border-radius: var(--radius);
+}
+
+.actor-theme button.rounded-full,
+.actor-theme input.rounded-full {
+  border-radius: var(--radius);
+}
+
+.actor-theme .rounded-2xl,
+.actor-theme .rounded-3xl,
+.actor-theme [class~="rounded-[24px]"],
+.actor-theme [class~="rounded-[28px]"],
+.actor-theme [class~="rounded-[32px]"] {
+  border-radius: var(--radius);
+}
+
+.actor-theme .rounded-xl {
+  border-radius: var(--radius);
+}
+
+.actor-theme .shadow-md,
+.actor-theme .shadow-lg,
+.actor-theme .shadow-xl {
+  box-shadow: 0 1px 3px rgb(24 24 27 / 8%);
+}
+
+.actor-theme .border-slate-100,
+.actor-theme .border-slate-200,
+.actor-theme .border-slate-700 {
+  border-color: var(--border);
+}
+
+.actor-theme .bg-white {
+  background-color: var(--card);
+}
+
+.actor-theme .bg-slate-50,
+.actor-theme .bg-slate-100,
+.actor-theme .bg-slate-800,
+.actor-theme .bg-slate-900 {
+  background-color: var(--muted);
+}
+
+.actor-theme .text-slate-900,
+.actor-theme .text-slate-950,
+.actor-theme .text-slate-800,
+.actor-theme .text-slate-700,
+.actor-theme .text-slate-600 {
+  color: var(--foreground);
+}
+
+.actor-theme .text-slate-500,
+.actor-theme .text-slate-400 {
+  color: var(--muted-foreground);
+}
+
+.actor-theme .hover\:bg-slate-50:hover,
+.actor-theme .hover\:bg-slate-100:hover {
+  background-color: var(--muted);
+}
+
+.actor-theme .bg-emerald-50,
+.actor-theme .bg-emerald-50\/30,
+.actor-theme .bg-emerald-100,
+.actor-theme .bg-blue-50,
+.actor-theme .bg-blue-100,
+.actor-theme .bg-violet-50 {
+  background-color: var(--muted);
+}
+
+.actor-theme .bg-emerald-200,
+.actor-theme .bg-emerald-300,
+.actor-theme .bg-emerald-400 {
+  background-color: var(--accent);
+}
+
+.actor-theme .bg-emerald-500,
+.actor-theme .bg-emerald-600,
+.actor-theme .bg-emerald-700,
+.actor-theme .bg-blue-500,
+.actor-theme .bg-blue-600,
+.actor-theme .bg-blue-700,
+.actor-theme [class~="bg-[#111111]"] {
+  background-color: var(--primary);
+}
+
+.actor-theme .text-emerald-100 {
+  color: var(--muted);
+}
+
+.actor-theme .text-emerald-200,
+.actor-theme .text-emerald-300,
+.actor-theme .text-emerald-400 {
+  color: var(--accent);
+}
+
+.actor-theme .text-emerald-500,
+.actor-theme .text-emerald-600,
+.actor-theme .text-emerald-700,
+.actor-theme .text-emerald-800,
+.actor-theme .text-emerald-900,
+.actor-theme .text-blue-500,
+.actor-theme .text-blue-600,
+.actor-theme .text-blue-700,
+.actor-theme .text-violet-700,
+.actor-theme .hover\:text-emerald-600:hover,
+.actor-theme .hover\:text-emerald-700:hover,
+.actor-theme .group:hover .group-hover\:text-emerald-700 {
+  color: var(--primary);
+}
+
+.actor-theme .border-emerald-100,
+.actor-theme .border-blue-100 {
+  border-color: var(--muted);
+}
+
+.actor-theme .border-emerald-200,
+.actor-theme .border-emerald-300,
+.actor-theme .border-emerald-400 {
+  border-color: var(--accent);
+}
+
+.actor-theme .border-emerald-500,
+.actor-theme .border-emerald-600,
+.actor-theme .border-emerald-700,
+.actor-theme .border-blue-200,
+.actor-theme .border-blue-300,
+.actor-theme .border-blue-400,
+.actor-theme .hover\:border-emerald-200:hover,
+.actor-theme .hover\:border-emerald-300:hover,
+.actor-theme .focus\:border-emerald-500:focus,
+.actor-theme .focus\:border-blue-500:focus {
+  border-color: var(--primary);
+}
+
+.actor-theme :is(article, form[class*="bg-white"], [data-actor-card]) {
+  border: 2px solid #d1d5db;
+}
+
+.actor-theme,
+.actor-theme main,
+.actor-theme main > div {
+  min-width: 0;
+}
+
+.actor-theme .hover\:bg-emerald-50:hover {
+  background-color: var(--muted);
+}
+
+.actor-theme .hover\:bg-emerald-700:hover,
+.actor-theme [class~="hover:bg-[#222222]"]:hover {
+  background-color: var(--primary);
+}
+
+.actor-theme .from-emerald-500 {
+  --tw-gradient-from: var(--accent);
+}
+
+.actor-theme .from-blue-400 {
+  --tw-gradient-from: var(--accent);
+}
+
+.actor-theme .via-blue-500 {
+  --tw-gradient-via: var(--primary);
+}
+
+.actor-theme .to-emerald-700 {
+  --tw-gradient-to: var(--primary);
+}
+
+.actor-theme .to-blue-600 {
+  --tw-gradient-to: var(--primary);
+}
+
+.actor-theme .shadow-emerald-600\/20,
+.actor-theme .shadow-emerald-500\/30 {
+  --tw-shadow-color: rgb(46 160 67 / 12%);
+}
+
+.actor-theme .shadow-emerald-600\/30 {
+  --tw-shadow-color: rgb(46 160 67 / 16%);
+}
+
+.actor-theme input:not([type="checkbox"]):not([type="radio"]),
+.actor-theme textarea,
+.actor-theme select {
+  border-radius: var(--radius);
+}
+
+.actor-theme .focus\:ring-emerald-500\/20:focus {
+  --tw-ring-color: rgb(46 160 67 / 20%);
+}
+
+.actor-theme :is(input, textarea, select):focus-visible,
+.actor-theme button:focus-visible,
+.actor-theme a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 .hero-split-bg {
   clip-path: polygon(18% 0%, 100% 0%, 100% 100%, 0% 100%);
 }

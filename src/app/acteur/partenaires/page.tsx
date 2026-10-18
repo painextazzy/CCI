@@ -193,7 +193,7 @@ export default function PartenairesPage() {
   return (
     <div className="space-y-4">
       {/* Barre de recherche + filtres */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+      <div data-actor-card className="bg-white rounded-3xl border border-slate-100 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
         {/* Recherche */}
         <div className="flex-1 flex flex-col px-4 py-2 sm:border-r sm:border-slate-100">
           <label className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">
@@ -444,7 +444,7 @@ export default function PartenairesPage() {
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center">
+        <div data-actor-card className="bg-white rounded-3xl border border-slate-100 p-12 text-center">
           <p className="text-slate-400 text-sm font-medium">
             Aucun partenaire ne correspond à votre recherche.
           </p>

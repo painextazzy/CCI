@@ -32,6 +32,7 @@ interface Company {
   region?: string;
   logoUrl?: string;
   coverUrl?: string;
+  user?: { avatarUrl?: string | null };
   nif?: string;
   stat?: string;
   website?: string;
@@ -51,6 +52,9 @@ interface Announcement {
   companyId?: string;
   company?: { id?: string };
 }
+
+const companyImageFallback =
+  "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80";
 
 // ─────────────────────────────────────────────────────────
 // Helpers
@@ -129,6 +133,13 @@ export default function CompanyDetailPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profileImageFallback, setProfileImageFallback] = useState<
+    "avatar" | "fallback" | "none" | null
+  >(null);
+
+  useEffect(() => {
+    setProfileImageFallback(null);
+  }, [companyId]);
 
   // 🔄 Chargement
   useEffect(() => {
@@ -200,7 +211,7 @@ export default function CompanyDetailPage() {
   if (error || !company) {
     return (
       <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center shadow-sm space-y-4">
+        <div data-actor-card className="bg-white rounded-3xl border border-slate-100 p-12 text-center shadow-sm space-y-4">
           <HiOutlineXCircle className="w-12 h-12 text-rose-400 mx-auto" />
           <p className="text-sm font-bold text-slate-800">
             {error || "Entreprise introuvable"}
@@ -215,16 +226,24 @@ export default function CompanyDetailPage() {
     .join(", ");
 
   const websiteDisplay = formatWebsite(company.website);
+  const profileImageUrl =
+    profileImageFallback === "none"
+      ? undefined
+      : profileImageFallback === "fallback"
+        ? companyImageFallback
+        : profileImageFallback === "avatar"
+          ? company.user?.avatarUrl || companyImageFallback
+          : company.logoUrl || company.user?.avatarUrl || companyImageFallback;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-6">
+    <div className="max-w-5xl mx-auto w-full px-2 sm:px-6 py-4 space-y-6">
       {/* ═══════════════════════════════════════════════════════
           CARTE PROFIL (pleine largeur)
           ═══════════════════════════════════════════════════════ */}
       <article className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         {/* Couverture */}
         <div
-          className={`h-28 sm:h-36 bg-gradient-to-br ${
+          className={`h-28 sm:h-36 bg-linear-to-br ${
             isLocal
               ? "from-emerald-400 via-emerald-500 to-emerald-600"
               : "from-blue-400 via-blue-500 to-blue-600"
@@ -241,20 +260,41 @@ export default function CompanyDetailPage() {
         />
 
         {/* Avatar + Actions */}
-        <div className="px-6 sm:px-10">
-          <div className="flex items-end justify-between -mt-16 sm:-mt-20 mb-4">
+        <div className="px-4 sm:px-10">
+          <div className="flex items-end justify-between -mt-12 sm:-mt-20 mb-4 gap-3">
             <div className="relative">
-              <img
-                alt={company.companyName}
-                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover ring-4 ring-white shadow-xl bg-white"
-                src={
-                  company.logoUrl ||
-                  "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80"
-                }
-              />
+              {profileImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt={`Photo de profil de ${company.companyName}`}
+                  className="h-24 w-24 rounded-full bg-white object-cover shadow-xl ring-4 ring-white sm:h-40 sm:w-40"
+                  src={profileImageUrl}
+                  onError={() => {
+                    if (
+                      profileImageFallback === null &&
+                      company.logoUrl &&
+                      company.user?.avatarUrl &&
+                      company.user.avatarUrl !== company.logoUrl
+                    ) {
+                      setProfileImageFallback("avatar");
+                    } else if (profileImageFallback !== "fallback") {
+                      setProfileImageFallback("fallback");
+                    } else {
+                      setProfileImageFallback("none");
+                    }
+                  }}
+                />
+              ) : (
+                <div
+                  aria-label={`Photo non disponible pour ${company.companyName}`}
+                  className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100 text-3xl font-bold text-emerald-800 ring-4 ring-white sm:h-40 sm:w-40"
+                >
+                  {company.companyName.trim().charAt(0).toUpperCase()}
+                </div>
+              )}
               {company.verificationStatus === "APPROVED" && (
                 <span
-                  className="absolute bottom-2 right-2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-emerald-500 ring-[4px] ring-white flex items-center justify-center shadow-lg"
+                  className="absolute bottom-2 right-2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-emerald-500 ring-4 ring-white flex items-center justify-center shadow-lg"
                   title="Certifiée CCI"
                 >
                   <HiOutlineCheckBadge className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -278,7 +318,7 @@ export default function CompanyDetailPage() {
 
           {/* Identité */}
           <div className="space-y-4 pb-6">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="wrap-break-word text-2xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
               {company.companyName}
             </h1>
 
@@ -412,7 +452,7 @@ export default function CompanyDetailPage() {
         </div>
 
         {announcements.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
+          <div data-actor-card className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
             <HiOutlineMegaphone className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-sm font-bold text-slate-700 mb-1">
               Aucune annonce publiée
@@ -437,7 +477,7 @@ export default function CompanyDetailPage() {
                         className="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-xs shrink-0"
                         src={
                           company.logoUrl ||
-                          "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=200&q=80"
+                          companyImageFallback
                         }
                       />
                       <div className="min-w-0 flex-1">

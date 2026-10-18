@@ -30,7 +30,7 @@ export default function ConversationPage({
       </Link>
 
       {/* En-tête conversation */}
-      <div className="bg-white rounded-3xl border border-slate-100 p-4 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] flex items-center justify-between gap-4">
+      <div data-actor-card className="bg-white rounded-3xl border border-slate-100 p-4 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm">
             AB
@@ -59,7 +59,7 @@ export default function ConversationPage({
       </div>
 
       {/* Messages */}
-      <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] min-h-[400px] flex flex-col gap-4">
+      <div data-actor-card className="bg-white rounded-3xl border border-slate-100 p-6 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] min-h-[400px] flex flex-col gap-4">
         {/* Message reçu */}
         <div className="flex gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
@@ -90,7 +90,7 @@ export default function ConversationPage({
       </div>
 
       {/* Champ de saisie */}
-      <div className="bg-white rounded-3xl border border-slate-100 p-3 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] flex items-center gap-2">
+      <div data-actor-card className="bg-white rounded-3xl border border-slate-100 p-3 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] flex items-center gap-2">
         <button className="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-500 transition">
           <Paperclip className="w-4 h-4" />
         </button>

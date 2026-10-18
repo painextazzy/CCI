@@ -167,7 +167,7 @@ export default function AccountSettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 pb-12 pt-4 sm:px-6">
-      <header className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
+      <header data-actor-card className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
         <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
           Paramètres du compte
         </h1>
@@ -177,7 +177,7 @@ export default function AccountSettingsPage() {
         </p>
       </header>
 
-      <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
+      <section data-actor-card className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
         <h2 className="text-base font-bold text-slate-900">
           Informations du compte
         </h2>
@@ -197,7 +197,7 @@ export default function AccountSettingsPage() {
         </p>
       </section>
 
-      <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
+      <section data-actor-card className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
         <h2 className="text-base font-bold text-slate-900">Photo de profil</h2>
         <form
           onSubmit={handlePhotoSubmit}
@@ -248,7 +248,7 @@ export default function AccountSettingsPage() {
         </form>
       </section>
 
-      <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
+      <section data-actor-card className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xs">
         <h2 className="text-base font-bold text-slate-900">
           Modifier le mot de passe
         </h2>

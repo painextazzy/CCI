@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./providers/AuthProvider";
+import { InterestsNotificationsProvider } from "./providers/InterestsNotificationsProvider";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${jakarta.variable} scroll-smooth`}>
       <body className="relative antialiased selection:bg-teal-500 selection:text-white">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <InterestsNotificationsProvider>{children}</InterestsNotificationsProvider>
+        </AuthProvider>
       </body>
     </html>
   );

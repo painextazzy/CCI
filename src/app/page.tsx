@@ -10,26 +10,25 @@ import Testimonials from "./components/Testimonials";
 import FAQ from "./components/FAQ";
 import Contact from "./components/Contact";
 import Footer from "./components/Footer";
+import HomeAuthRedirect from "./components/HomeAuthRedirect";
 
 export default function Home() {
   return (
-    <>
+    <HomeAuthRedirect>
       <Header />
       <main>
         <Hero />
         <Partners />
-            <SummaryBar />
-        
-    
+        <SummaryBar />
         <About />
         <Services />
-        <HowItWorks /> 
+        <HowItWorks />
         <OpportunitiesPreview />
         <Testimonials />
         <FAQ />
         <Contact />
       </main>
       <Footer />
-    </>
+    </HomeAuthRedirect>
   );
 }
