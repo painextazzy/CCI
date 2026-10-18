@@ -111,6 +111,9 @@ export default function OpportunitiesPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sendingInterestId, setSendingInterestId] = useState<string | number | null>(null);
+  const [interestSentIds, setInterestSentIds] = useState<Set<string | number>>(
+    new Set(),
+  );
   const [interestFeedback, setInterestFeedback] = useState<{
     id: string | number;
     message: string;
@@ -155,6 +158,8 @@ export default function OpportunitiesPage({
 
   const handleExpressInterest = useCallback(
     async (opportunity: Opportunity) => {
+      if (interestSentIds.has(opportunity.id)) return;
+
       if (!user?.company?.id || user.role !== "COMPANY") {
         setInterestFeedback({
           id: opportunity.id,
@@ -186,6 +191,7 @@ export default function OpportunitiesPage({
           throw new Error(message || "Impossible d'envoyer votre demande.");
         }
 
+        setInterestSentIds((current) => new Set(current).add(opportunity.id));
         setInterestFeedback({
           id: opportunity.id,
           message: "Votre demande d'intérêt a été envoyée.",
@@ -204,7 +210,7 @@ export default function OpportunitiesPage({
         setSendingInterestId(null);
       }
     },
-    [user],
+    [interestSentIds, user],
   );
 
   useEffect(() => {
@@ -526,6 +532,11 @@ export default function OpportunitiesPage({
                             className="w-11 h-11 rounded-full object-cover ring-2 ring-white shrink-0"
                             src={actorPhoto}
                           />
+                        ) : interestSentIds.has(item.id) ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                            <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                            Intérêt envoyé
+                          </span>
                         ) : (
                           <div
                             aria-label={`Photo de ${item.company.name} non renseignée`}

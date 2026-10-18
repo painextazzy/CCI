@@ -5,8 +5,6 @@ import type { FormEvent } from "react";
 import {
   BriefcaseBusiness,
   CalendarDays,
-  Download,
-  FileSignature,
   LoaderCircle,
   MapPin,
   Pencil,
@@ -92,14 +90,6 @@ const formatDate = (date: string) => {
   return Number.isNaN(d.getTime())
     ? "Date inconnue"
     : new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(d);
-};
-
-const formatAmount = (amount: string) => {
-  try {
-    return `${new Intl.NumberFormat("fr-FR").format(BigInt(amount))} Ar`;
-  } catch {
-    return "Montant indisponible";
-  }
 };
 
 // ─────────────────────────────────────────────────────────
@@ -262,6 +252,9 @@ function LineChart({
   );
 }
 
+// ─────────────────────────────────────────────────────────
+// 📈 Courbe contrats
+// ─────────────────────────────────────────────────────────
 function ContractLineChart({
   data,
 }: {
@@ -512,7 +505,7 @@ export default function ActorProfilePage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | AnnouncementStatus>("ALL");
 
-  // Chargement
+  // Chargement annonces
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -535,6 +528,7 @@ export default function ActorProfilePage() {
     void load();
   }, [load]);
 
+  // Chargement contrats
   useEffect(() => {
     if (!user?.company?.id) return;
     let active = true;
@@ -553,7 +547,7 @@ export default function ActorProfilePage() {
           } | null;
           throw new Error(
             result?.message ||
-              "Impossible de charger l’historique des contrats.",
+              "Impossible de charger l'historique des contrats.",
           );
         }
         const result = (await response.json()) as ContractRecord[];
@@ -563,7 +557,7 @@ export default function ActorProfilePage() {
           setContractsError(
             cause instanceof Error
               ? cause.message
-              : "Impossible de charger l’historique des contrats.",
+              : "Impossible de charger l'historique des contrats.",
           );
         }
       } finally {
@@ -576,32 +570,6 @@ export default function ActorProfilePage() {
       active = false;
     };
   }, [user?.company?.id]);
-
-  const downloadContract = async (contract: ContractRecord) => {
-    try {
-      const response = await fetch(
-        `${getApiRoot()}/messages/contracts/${contract.id}/pdf`,
-        { credentials: "include" },
-      );
-      if (!response.ok) {
-        throw new Error("Le PDF du contrat n’a pas pu être téléchargé.");
-      }
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${contract.reference}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (cause) {
-      setContractsError(
-        cause instanceof Error
-          ? cause.message
-          : "Le PDF du contrat n’a pas pu être téléchargé.",
-      );
-    }
-  };
 
   // Édition
   const startEdit = (a: Announcement) => {
@@ -680,7 +648,7 @@ export default function ActorProfilePage() {
     };
   }, [announcements]);
 
-  // Évolution 6 mois
+  // Évolution annonces 6 mois
   const evolution = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 6 }, (_, idx) => {
@@ -704,6 +672,7 @@ export default function ActorProfilePage() {
     });
   }, [announcements]);
 
+  // Évolution contrats 6 mois
   const contractEvolution = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 6 }, (_, index) => {
@@ -758,7 +727,7 @@ export default function ActorProfilePage() {
 
   return (
     <div className="w-full space-y-6 py-4 px-4 sm:px-6 lg:px-8">
-      {/* Évolution */}
+      {/* Évolution des annonces */}
       <section
         data-actor-card
         className="rounded-3xl border border-[#F2F2F2] bg-white p-6"
@@ -806,6 +775,7 @@ export default function ActorProfilePage() {
         </div>
       </section>
 
+      {/* Évolution des contrats + Suivi */}
       <section className="grid gap-5 lg:grid-cols-5">
         <div
           data-actor-card
@@ -848,7 +818,7 @@ export default function ActorProfilePage() {
               Suivi contractuel
             </h2>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              Vue d’ensemble de vos engagements acceptés
+              Vue d'ensemble de vos engagements acceptés
             </p>
           </div>
           <p className="text-4xl font-extrabold text-emerald-700">
@@ -866,96 +836,39 @@ export default function ActorProfilePage() {
               <p className="mt-1 truncate text-sm font-bold text-slate-800">
                 {contracts[0].title}
               </p>
+              {contracts[0].description && (
+                <div className="mt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    Objet du partenariat
+                  </p>
+                  <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">
+                    {contracts[0].description}
+                  </p>
+                </div>
+              )}
+              {(contracts[0].startDate || contracts[0].endDate) && (
+                <p className="mt-3 text-xs text-slate-500">
+                  Période :{" "}
+                  {contracts[0].startDate
+                    ? formatDate(contracts[0].startDate)
+                    : "Date de début non renseignée"}
+                  {" – "}
+                  {contracts[0].endDate
+                    ? formatDate(contracts[0].endDate)
+                    : "Date de fin non renseignée"}
+                </p>
+              )}
               <p className="mt-1 text-xs text-slate-500">
-                {formatDate(contracts[0].acceptedAt)}
+                Accepté le {formatDate(contracts[0].acceptedAt)}
               </p>
             </div>
           )}
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900">
-            Historique des contrats
-          </h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Contrats acceptés avec vos partenaires
-          </p>
-        </div>
-        {contractsError && (
-          <p
-            role="alert"
-            className="rounded-xl bg-rose-50 px-4 py-3 text-xs text-rose-700"
-          >
-            {contractsError}
-          </p>
-        )}
-        {isLoadingContracts ? (
-          <div className="flex items-center justify-center gap-2 rounded-3xl border border-[#F2F2F2] bg-white py-12 text-xs font-medium text-slate-500">
-            <LoaderCircle className="h-4 w-4 animate-spin text-emerald-600" />
-            Chargement de l’historique...
-          </div>
-        ) : contracts.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-[#F2F2F2] bg-white px-6 py-10 text-center text-sm text-slate-500">
-            Aucun contrat enregistré.
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-3xl border border-[#F2F2F2] bg-white">
-            {contracts.map((contract) => {
-              const partnerName =
-                contract.senderCompanyId === user?.company?.id
-                  ? contract.receiverCompanyName
-                  : contract.senderCompanyName;
-              return (
-                <article
-                  key={contract.id}
-                  className="flex flex-col gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:px-6"
-                >
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                      <FileSignature className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="truncate text-sm font-bold text-slate-900">
-                        {contract.title}
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {partnerName} · {contract.reference}
-                      </p>
-                      <p className="mt-1 text-[11px] text-slate-400">
-                        Accepté le {formatDate(contract.acceptedAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 sm:justify-end">
-                    <span className="text-xs font-extrabold text-emerald-700">
-                      {formatAmount(contract.amount)}
-                    </span>
-                    <a
-                      href={`/acteur/entreprises/${contract.senderCompanyId === user?.company?.id ? contract.receiverCompanyId : contract.senderCompanyId}`}
-                      className="inline-flex items-center gap-1 rounded-xl border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
-                    >
-                      Détails
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => void downloadContract(contract)}
-                      aria-label={`Télécharger le contrat ${contract.reference}`}
-                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      PDF
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {/* ❌ SECTION "Historique des contrats" SUPPRIMÉE */}
 
-      {/* Historique */}
+      {/* Historique des annonces */}
       <section className="space-y-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-900">

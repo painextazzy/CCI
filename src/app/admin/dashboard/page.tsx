@@ -1,410 +1,680 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  BriefcaseBusiness,
+  Building2,
+  ChartNoAxesCombined,
+  Clock3,
+  LoaderCircle,
+  RefreshCw,
+  ShieldCheck,
+  UserRoundCheck,
+  UsersRound,
+} from "lucide-react";
+import { getApiRoot } from "../../lib/auth";
+
+type VerificationStatus = "PENDING" | "APPROVED" | "REJECTED";
+type AnnouncementStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
+
+interface DashboardCompany {
+  id: string;
+  companyName?: string;
+  sector?: string;
+  verificationStatus?: VerificationStatus;
+  createdAt?: string;
+}
+
+interface DashboardAnnouncement {
+  id: string;
+  status?: AnnouncementStatus;
+}
+
+interface MonthlyRegistration {
+  key: string;
+  label: string;
+  count: number;
+}
+
+const numberFormatter = new Intl.NumberFormat("fr-FR");
+const verificationLabels: Record<VerificationStatus, string> = {
+  PENDING: "En attente",
+  APPROVED: "Approuvée",
+  REJECTED: "Refusée",
+};
+
+const sectorLabels: Record<string, string> = {
+  AGRO: "Agroalimentaire",
+  NTIC: "NTIC & Web",
+  BTP: "BTP & Construction",
+  TOURISM: "Tourisme",
+  COMMERCE: "Commerce",
+  ARTISANAT: "Artisanat",
+};
+
+function formatDate(value?: string): string {
+  if (!value) return "Date inconnue";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date inconnue";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function getSixMonthTrend(
+  companies: DashboardCompany[],
+): MonthlyRegistration[] {
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    return {
+      key,
+      label: new Intl.DateTimeFormat("fr-FR", { month: "short" })
+        .format(date)
+        .replace(".", ""),
+      count: 0,
+    };
+  });
+  const counts = new Map(months.map((month) => [month.key, 0]));
+
+  companies.forEach((company) => {
+    if (!company.createdAt) return;
+    const date = new Date(company.createdAt);
+    if (Number.isNaN(date.getTime())) return;
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  });
+
+  return months.map((month) => ({
+    ...month,
+    count: counts.get(month.key) ?? 0,
+  }));
+}
 
 export default function AdminDashboardPage() {
-  // Données de démo
-  const user = { name: "Sujon" };
+  const [companies, setCompanies] = useState<DashboardCompany[]>([]);
+  const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>(
+    [],
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  const engagementData = [
-    { month: "JAN", value: 1800 },
-    { month: "FEB", value: 4200 },
-    { month: "MAR", value: 2800 },
-    { month: "APR", value: 4600, highlight: true },
-    { month: "MAY", value: 3200 },
-    { month: "JUN", value: 4400 },
-  ];
+  useEffect(() => {
+    const controller = new AbortController();
 
-  const paymentHistory = [
-    { name: "Dribbble Design", date: "16 Juin 2025", time: "10:30 PM", amount: "89 345.23 USD", percent: "+18.67%", color: "bg-pink-100" },
-    { name: "Google Pay", date: "15 Juin 2025", time: "11:45 PM", amount: "12 345.89 USD", percent: "+9.34%", color: "bg-blue-100" },
-    { name: "Amazon Shopping", date: "14 Juin 2025", time: "10:15 PM", amount: "32 123.67 USD", percent: "+12.23%", color: "bg-amber-100" },
-  ];
+    async function loadDashboard() {
+      setIsLoading(true);
+      setLoadError(null);
 
-  const pendingRequests = [
-    { name: "Nexus Technologies", date: "16 Juin 2025", amount: "89 345.23 USD" },
-    { name: "Google Pay SARL", date: "15 Juin 2025", amount: "12 345.89 USD" },
-    { name: "Amazon Shopping", date: "14 Juin 2025", amount: "32 123.67 USD" },
+      try {
+        const apiRoot = getApiRoot();
+        const [companiesResponse, announcementsResponse] = await Promise.all([
+          fetch(`${apiRoot}/companies`, {
+            credentials: "include",
+            cache: "no-store",
+            signal: controller.signal,
+          }),
+          fetch(`${apiRoot}/announcements`, {
+            credentials: "include",
+            cache: "no-store",
+            signal: controller.signal,
+          }),
+        ]);
+
+        if (!companiesResponse.ok) {
+          throw new Error("Impossible de charger les entreprises.");
+        }
+        if (!announcementsResponse.ok) {
+          throw new Error("Impossible de charger les annonces.");
+        }
+
+        const [companyData, announcementData] = await Promise.all([
+          companiesResponse.json(),
+          announcementsResponse.json(),
+        ]);
+
+        if (!Array.isArray(companyData) || !Array.isArray(announcementData)) {
+          throw new Error("Les données reçues du serveur sont invalides.");
+        }
+
+        setCompanies(companyData as DashboardCompany[]);
+        setAnnouncements(announcementData as DashboardAnnouncement[]);
+        setUpdatedAt(new Date());
+      } catch (cause) {
+        if (controller.signal.aborted) return;
+        setLoadError(
+          cause instanceof Error
+            ? cause.message
+            : "Une erreur est survenue lors du chargement du tableau de bord.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false);
+      }
+    }
+
+    void loadDashboard();
+    return () => controller.abort();
+  }, [refreshKey]);
+
+  const approvedCount = companies.filter(
+    (company) => company.verificationStatus === "APPROVED",
+  ).length;
+  const pendingCount = companies.filter(
+    (company) => company.verificationStatus === "PENDING",
+  ).length;
+  const rejectedCount = companies.filter(
+    (company) => company.verificationStatus === "REJECTED",
+  ).length;
+
+  const monthlyRegistrations = useMemo(
+    () => getSixMonthTrend(companies),
+    [companies],
+  );
+  const registrationTotal = monthlyRegistrations.reduce(
+    (total, month) => total + month.count,
+    0,
+  );
+  const previousMonthCount =
+    monthlyRegistrations[monthlyRegistrations.length - 2]?.count ?? 0;
+  const currentMonthCount =
+    monthlyRegistrations[monthlyRegistrations.length - 1]?.count ?? 0;
+  const monthlyChange =
+    previousMonthCount === 0
+      ? currentMonthCount > 0
+        ? null
+        : 0
+      : ((currentMonthCount - previousMonthCount) / previousMonthCount) * 100;
+
+  const chartPoints = monthlyRegistrations.map((month, index) => {
+    const maxCount = Math.max(
+      1,
+      ...monthlyRegistrations.map((item) => item.count),
+    );
+    return {
+      ...month,
+      x: 54 + index * 122,
+      y: 174 - (month.count / maxCount) * 126,
+    };
+  });
+  const chartLine = chartPoints.map(({ x, y }) => `${x},${y}`).join(" ");
+  const chartArea = chartPoints.length
+    ? `54,190 ${chartLine} ${chartPoints[chartPoints.length - 1].x},190`
+    : "";
+
+  const sectorCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    companies.forEach((company) => {
+      const sector = company.sector?.trim() || "OTHER";
+      counts.set(sector, (counts.get(sector) ?? 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([sector, count]) => ({
+        sector,
+        label:
+          sectorLabels[sector] ??
+          (sector === "OTHER" ? "Non renseigné" : sector),
+        count,
+      }))
+      .sort((first, second) => second.count - first.count)
+      .slice(0, 5);
+  }, [companies]);
+
+  const maximumSectorCount = Math.max(
+    1,
+    ...sectorCounts.map((sector) => sector.count),
+  );
+  const recentCompanies = [...companies]
+    .sort((first, second) => {
+      const firstDate = first.createdAt
+        ? new Date(first.createdAt).getTime()
+        : 0;
+      const secondDate = second.createdAt
+        ? new Date(second.createdAt).getTime()
+        : 0;
+      return secondDate - firstDate;
+    })
+    .slice(0, 5);
+
+  const statusCounts: {
+    status: AnnouncementStatus;
+    label: string;
+    count: number;
+    color: string;
+  }[] = [
+    {
+      status: "OPEN",
+      label: "Ouvertes",
+      count: announcements.filter(
+        (announcement) => announcement.status === "OPEN",
+      ).length,
+      color: "bg-emerald-500",
+    },
+    {
+      status: "IN_PROGRESS",
+      label: "En cours",
+      count: announcements.filter(
+        (announcement) => announcement.status === "IN_PROGRESS",
+      ).length,
+      color: "bg-amber-400",
+    },
+    {
+      status: "CLOSED",
+      label: "Clôturées",
+      count: announcements.filter(
+        (announcement) => announcement.status === "CLOSED",
+      ).length,
+      color: "bg-slate-400",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-[#f5f7f6] p-4 sm:p-6">
-      {/* Conteneur principal — style carte blanche arrondie */}
-      <div className="max-w-[1600px] mx-auto bg-[#fbfcfb] rounded-[32px] p-4 sm:p-6 lg:p-8 shadow-[0_4px_30px_-10px_rgba(15,23,42,0.06)]">
-        
-        {/* ═══════════════════════════════════════════════════════════
-            LIGNE 1 — Salutation + Actions
-            ═══════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Bon retour, <span className="text-slate-400 font-light">{user.name}</span>
+    <div className="space-y-6 pb-8">
+      <section className="flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+        <div>
+          <p className="text-sm font-semibold text-emerald-700">
+            Espace administration
+          </p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            Tableau de bord analytique
           </h1>
-
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 transition text-xs font-semibold text-slate-700 shadow-xs">
-              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              29 Juin, 2025 – 29 Août, 2025
-              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-
-            <button className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 transition text-xs font-semibold text-slate-700 shadow-xs">
-              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <line x1="12" y1="5" x2="12" y2="19" strokeLinecap="round" />
-                <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
-              </svg>
-              Nouvelle demande
-            </button>
-          </div>
+          <p className="mt-2 text-sm text-slate-500">
+            Vue d’ensemble des entreprises, annonces et inscriptions.
+          </p>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {updatedAt && (
+            <span className="text-xs text-slate-500">
+              Mis à jour à{" "}
+              {new Intl.DateTimeFormat("fr-FR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }).format(updatedAt)}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setRefreshKey((current) => current + 1)}
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-wait disabled:opacity-60"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
+            Actualiser
+          </button>
+        </div>
+      </section>
 
-        {/* ═══════════════════════════════════════════════════════════
-            GRILLE PRINCIPALE : Sidebar + Contenu
-            ═══════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_320px] gap-4 sm:gap-5">
-          
-          {/* ───── COLONNE GAUCHE : Sidebar icônes ───── */}
-          <aside className="hidden lg:flex flex-col gap-3 w-14">
-            {/* Bouton dashboard actif */}
-            <Link
-              href="/admin/dashboard"
-              className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                <rect x="14" y="14" width="7" height="7" rx="1.5" />
-              </svg>
-            </Link>
+      {loadError && (
+        <div
+          className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between"
+          role="alert"
+        >
+          <p>{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setRefreshKey((current) => current + 1)}
+            className="font-bold underline underline-offset-2"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
 
-            {[
-              { icon: "chart", href: "/admin/reports" },
-              { icon: "wallet", href: "/admin/payments" },
-              { icon: "users", href: "/admin/users" },
-              { icon: "mail", href: "/admin/messages" },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="w-14 h-14 rounded-2xl bg-white border border-slate-200/80 text-slate-500 hover:text-emerald-600 hover:border-emerald-300 flex items-center justify-center transition shadow-xs"
-              >
-                {item.icon === "chart" && (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <line x1="18" y1="20" x2="18" y2="10" strokeLinecap="round" />
-                    <line x1="12" y1="20" x2="12" y2="4" strokeLinecap="round" />
-                    <line x1="6" y1="20" x2="6" y2="14" strokeLinecap="round" />
-                  </svg>
-                )}
-                {item.icon === "wallet" && (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="2" y="6" width="20" height="14" rx="2" />
-                    <path d="M2 10h20" />
-                  </svg>
-                )}
-                {item.icon === "users" && (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                )}
-                {item.icon === "mail" && (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="2" y="4" width="20" height="16" rx="2" />
-                    <path d="m22 7-10 7L2 7" />
-                  </svg>
-                )}
-              </Link>
-            ))}
+      {isLoading && companies.length === 0 ? (
+        <div className="flex min-h-64 items-center justify-center rounded-3xl bg-white text-emerald-700 shadow-sm ring-1 ring-slate-100">
+          <LoaderCircle
+            className="h-7 w-7 animate-spin"
+            aria-label="Chargement"
+          />
+        </div>
+      ) : !loadError ? (
+        <>
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Entreprises inscrites"
+              value={companies.length}
+              detail={`${approvedCount} approuvée${approvedCount === 1 ? "" : "s"}`}
+              icon={<Building2 className="h-5 w-5" />}
+              tone="emerald"
+            />
+            <MetricCard
+              label="En attente de validation"
+              value={pendingCount}
+              detail="Demandes à examiner"
+              icon={<Clock3 className="h-5 w-5" />}
+              tone="amber"
+            />
+            <MetricCard
+              label="Membres approuvés"
+              value={approvedCount}
+              detail={`${rejectedCount} refusée${rejectedCount === 1 ? "" : "s"}`}
+              icon={<UserRoundCheck className="h-5 w-5" />}
+              tone="blue"
+            />
+            <MetricCard
+              label="Annonces visibles"
+              value={announcements.length}
+              detail={`${statusCounts[0].count} actuellement ouvertes`}
+              icon={<BriefcaseBusiness className="h-5 w-5" />}
+              tone="violet"
+            />
+          </section>
 
-            <div className="flex-1" />
-
-            <Link
-              href="/admin/settings"
-              className="w-14 h-14 rounded-2xl bg-white border border-slate-200/80 text-slate-500 hover:text-emerald-600 hover:border-emerald-300 flex items-center justify-center transition shadow-xs"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </Link>
-          </aside>
-
-          {/* ───── COLONNE CENTRALE : Cartes principales ───── */}
-          <div className="space-y-4 sm:space-y-5">
-            
-            {/* Rangée 1 : Payment Goal + Engagement Rate */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5">
-              
-              {/* Carte Payment Goal (verte) */}
-              <div className="bg-white rounded-3xl p-5 border border-slate-100">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-xs font-bold text-slate-900">Objectif du mois</p>
-                    <p className="text-[10px] text-slate-400 font-medium">Total des demandes traitées</p>
-                  </div>
-                  <button className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                      <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Carte verte "VISA" style */}
-                <div className="relative bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 rounded-2xl p-5 text-white shadow-lg shadow-emerald-900/20 overflow-hidden">
-                  <div className="absolute top-4 right-5 text-white/80">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
-                    </svg>
-                  </div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 mb-1">
-                    Total validé
-                  </p>
-                  <p className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-5">
-                    78 989,09 <span className="text-sm font-bold">Ar</span>
-                  </p>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-mono tracking-wider">•••• 909090</span>
-                    <span className="text-emerald-200">EXP 09/26</span>
-                  </div>
-                </div>
-
-                {/* Weekly Revenue */}
-                <div className="mt-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-medium">Revenus hebdo</p>
-                    <p className="text-lg font-extrabold text-slate-900">+3 945 USD</p>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                    +12,8%
-                  </span>
-                </div>
-              </div>
-
-              {/* Carte Engagement Rate (graphique) */}
-              <div className="bg-white rounded-3xl p-5 border border-slate-100">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <rect x="3" y="4" width="18" height="16" rx="2" />
-                        <path d="M3 10h18" />
-                      </svg>
-                    </div>
-                    <p className="text-xs font-bold text-slate-900">Taux d&apos;engagement</p>
-                  </div>
-                  <div className="flex items-center gap-1 bg-slate-100 rounded-full p-0.5">
-                    <button className="px-3 py-1 text-[10px] font-bold rounded-full text-slate-500 hover:text-slate-900 transition">
-                      Mensuel
-                    </button>
-                    <button className="px-3 py-1 text-[10px] font-bold rounded-full bg-emerald-600 text-white shadow-sm">
-                      Annuel
-                    </button>
-                  </div>
-                </div>
-
-                {/* Graphique à barres */}
-                <div className="relative h-40 flex items-end justify-between gap-2 sm:gap-3 pt-6">
-                  {/* Ligne de référence */}
-                  <div className="absolute inset-x-0 top-6 bottom-6 border-t border-dashed border-slate-200" />
-
-                  {engagementData.map((item, i) => (
-                    <div key={item.month} className="flex-1 flex flex-col items-center gap-2 relative z-10">
-                      {item.highlight && (
-                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-bold whitespace-nowrap">
-                          +17,8%
-                        </div>
-                      )}
-                      <div
-                        className={`w-full rounded-t-xl transition-all duration-500 ${
-                          item.highlight
-                            ? "bg-emerald-700 shadow-lg shadow-emerald-700/30"
-                            : "bg-emerald-200"
-                        }`}
-                        style={{ height: `${(item.value / 5000) * 100}%` }}
-                      />
-                      <span className="text-[9px] font-bold text-slate-400 uppercase">
-                        {item.month}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Rangée 2 : Payment History */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-100">
-              <div className="flex items-center justify-between mb-4">
+          <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-slate-900">Historique des demandes</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Dernières demandes d&apos;inscription</p>
-                </div>
-                <button className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* En-têtes du tableau */}
-              <div className="grid grid-cols-12 gap-3 pb-3 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <div className="col-span-4">Nom</div>
-                <div className="col-span-3">Date</div>
-                <div className="col-span-2">Heure</div>
-                <div className="col-span-3 text-right">Montant</div>
-              </div>
-
-              {/* Lignes */}
-              <div className="divide-y divide-slate-50">
-                {paymentHistory.map((item, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-3 py-3 items-center">
-                    <div className="col-span-4 flex items-center gap-3 min-w-0">
-                      <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center shrink-0`}>
-                        <span className="text-xs font-bold text-slate-700">
-                          {item.name.charAt(0)}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-800 truncate">{item.name}</p>
-                        <p className="text-[10px] text-emerald-600 font-semibold">{item.percent}</p>
-                      </div>
-                    </div>
-                    <div className="col-span-3 text-[11px] text-slate-500">{item.date}</div>
-                    <div className="col-span-2 text-[11px] text-slate-500">{item.time}</div>
-                    <div className="col-span-3 text-right">
-                      <span className="text-xs font-bold text-slate-900">{item.amount}</span>
-                      <span className="ml-2 inline-flex w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    </div>
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <ChartNoAxesCombined className="h-5 w-5 text-emerald-600" />
+                    <h2 className="font-bold">Évolution des inscriptions</h2>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* ───── COLONNE DROITE : Cartes secondaires ───── */}
-          <div className="space-y-4 sm:space-y-5">
-            
-            {/* Carte Balance (graphique lignes) */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-100">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Solde total</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Revenus annuels</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Nouvelles entreprises inscrites sur les six derniers mois
+                  </p>
                 </div>
-                <button className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
+                <div className="text-right">
+                  <p className="text-2xl font-extrabold text-slate-900">
+                    {numberFormatter.format(registrationTotal)}
+                  </p>
+                  <p className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
+                    {monthlyChange !== null &&
+                      (monthlyChange >= 0 ? (
+                        <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600" />
+                      ) : (
+                        <ArrowDownRight className="h-3.5 w-3.5 text-rose-600" />
+                      ))}
+                    {monthlyChange === null
+                      ? "Nouvelle activité ce mois"
+                      : `${monthlyChange > 0 ? "+" : ""}${Math.round(monthlyChange)} % vs mois précédent`}
+                  </p>
+                </div>
               </div>
 
-              <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-4">
-                32 678,90 <span className="text-sm font-bold text-slate-500">USD</span>
-              </p>
-
-              {/* Graphique courbe */}
-              <div className="relative h-20 mb-4">
-                <svg viewBox="0 0 300 80" className="w-full h-full">
+              <div className="mt-5 overflow-hidden">
+                <svg
+                  viewBox="0 0 700 238"
+                  className="h-56 w-full overflow-visible"
+                  role="img"
+                  aria-label="Courbe des inscriptions mensuelles sur les six derniers mois"
+                >
                   <defs>
-                    <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="registration-area"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
                       <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
                     </linearGradient>
                   </defs>
-                  <path
-                    d="M 0 50 Q 40 20 80 40 T 160 30 T 240 45 T 300 25"
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M 0 50 Q 40 20 80 40 T 160 30 T 240 45 T 300 25 L 300 80 L 0 80 Z"
-                    fill="url(#areaGradient)"
-                  />
+                  {[48, 82, 116, 150, 190].map((y) => (
+                    <line
+                      key={y}
+                      x1="42"
+                      x2="680"
+                      y1={y}
+                      y2={y}
+                      stroke="#e2e8f0"
+                      strokeDasharray="4 6"
+                    />
+                  ))}
+                  {chartPoints.length > 0 && (
+                    <>
+                      <polygon
+                        points={chartArea}
+                        fill="url(#registration-area)"
+                      />
+                      <polyline
+                        points={chartLine}
+                        fill="none"
+                        stroke="#059669"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      {chartPoints.map((point) => (
+                        <g key={point.key}>
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r="5"
+                            fill="#fff"
+                            stroke="#059669"
+                            strokeWidth="3"
+                          />
+                          <text
+                            x={point.x}
+                            y="218"
+                            textAnchor="middle"
+                            className="fill-slate-500 text-[12px]"
+                          >
+                            {point.label}
+                          </text>
+                          <text
+                            x={point.x}
+                            y={Math.max(34, point.y - 13)}
+                            textAnchor="middle"
+                            className="fill-slate-700 text-[11px] font-semibold"
+                          >
+                            {point.count}
+                          </text>
+                        </g>
+                      ))}
+                    </>
+                  )}
                 </svg>
               </div>
-
-              <div className="flex gap-2">
-                <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition">
-                  Envoyer
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-[11px] font-bold hover:bg-slate-50 transition">
-                  Recevoir
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                    <path d="M12 5v14M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              </div>
             </div>
 
-            {/* Carte Amount of credit */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-100">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect x="2" y="6" width="20" height="14" rx="2" />
-                    <path d="M2 10h20" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Montant du crédit</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Total des remboursements</p>
-                </div>
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
+              <div className="flex items-center gap-2 text-slate-900">
+                <BriefcaseBusiness className="h-5 w-5 text-emerald-600" />
+                <h2 className="font-bold">État des annonces</h2>
               </div>
-
-              <div className="flex items-baseline gap-2 mb-1">
-                <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                  8 945,89
-                </p>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                  +2,8%
-                </span>
+              <p className="mt-1 text-sm text-slate-500">
+                Répartition des annonces visibles par statut
+              </p>
+              <div className="mt-6 space-y-5">
+                {statusCounts.map((item) => {
+                  const percentage = announcements.length
+                    ? (item.count / announcements.length) * 100
+                    : 0;
+                  return (
+                    <div key={item.status}>
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="font-medium text-slate-600">
+                          {item.label}
+                        </span>
+                        <span className="font-bold text-slate-900">
+                          {numberFormatter.format(item.count)}
+                        </span>
+                      </div>
+                      <div
+                        className="h-2 overflow-hidden rounded-full bg-slate-100"
+                        role="progressbar"
+                        aria-label={item.label}
+                        aria-valuenow={item.count}
+                        aria-valuemin={0}
+                        aria-valuemax={announcements.length}
+                      >
+                        <div
+                          className={`h-full rounded-full ${item.color}`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+              <Link
+                href="/acteur/opportunites"
+                className="mt-7 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800"
+              >
+                Parcourir les annonces
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
+          </section>
 
-            {/* Carte Mandatory Payments */}
-            <div className="bg-white rounded-3xl p-5 border border-slate-100">
-              <div className="flex items-center justify-between mb-3">
+          <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold text-slate-900">Paiements obligatoires</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Derniers paiements</p>
-                </div>
-                <button className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-500 transition">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-                    <path d="M7 17L17 7M17 7H8M17 7v9" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Avatars empilés */}
-              <div className="flex items-center">
-                {pendingRequests.slice(0, 3).map((_, i) => (
-                  <div
-                    key={i}
-                    className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-white shadow-sm -ml-2 first:ml-0"
-                  >
-                    <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-emerald-700" />
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <UsersRound className="h-5 w-5 text-emerald-600" />
+                    <h2 className="font-bold">Inscriptions récentes</h2>
                   </div>
-                ))}
-                <div className="relative w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-white shadow-sm -ml-2">
-                  +2
+                  <p className="mt-1 text-sm text-slate-500">
+                    Dernières entreprises enregistrées
+                  </p>
                 </div>
+                <Link
+                  href="/admin/companies/pending"
+                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                >
+                  Voir les demandes
+                </Link>
+              </div>
+              <div className="mt-5 divide-y divide-slate-100">
+                {recentCompanies.length ? (
+                  recentCompanies.map((company) => {
+                    const status = company.verificationStatus ?? "PENDING";
+                    return (
+                      <div
+                        key={company.id}
+                        className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                            <Building2 className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-slate-800">
+                              {company.companyName || "Entreprise sans nom"}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {formatDate(company.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            status === "APPROVED"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : status === "REJECTED"
+                                ? "bg-rose-50 text-rose-700"
+                                : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {verificationLabels[status]}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    Aucune entreprise enregistrée.
+                  </p>
+                )}
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+
+            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
+              <div className="flex items-center gap-2 text-slate-900">
+                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                <h2 className="font-bold">Secteurs représentés</h2>
+              </div>
+              <p className="mt-1 text-sm text-slate-500">
+                Secteurs d’activité les plus présents chez les membres
+              </p>
+              <div className="mt-5 space-y-4">
+                {sectorCounts.length ? (
+                  sectorCounts.map((item) => (
+                    <div key={item.sector}>
+                      <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate font-medium text-slate-600">
+                          {item.label}
+                        </span>
+                        <span className="shrink-0 font-bold text-slate-900">
+                          {numberFormatter.format(item.count)}
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-emerald-500"
+                          style={{
+                            width: `${(item.count / maximumSectorCount) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="py-8 text-center text-sm text-slate-500">
+                    Les secteurs apparaîtront dès l’inscription des entreprises.
+                  </p>
+                )}
+              </div>
+              <Link
+                href="/admin/users"
+                className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800"
+              >
+                Consulter les membres
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </section>
+        </>
+      ) : null}
     </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  detail,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+  icon: ReactNode;
+  tone: "emerald" | "amber" | "blue" | "violet";
+}) {
+  const toneClasses = {
+    emerald: "bg-emerald-50 text-emerald-700",
+    amber: "bg-amber-50 text-amber-700",
+    blue: "bg-sky-50 text-sky-700",
+    violet: "bg-violet-50 text-violet-700",
+  };
+
+  return (
+    <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <p className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
+            {numberFormatter.format(value)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">{detail}</p>
+        </div>
+        <div className={`rounded-2xl p-3 ${toneClasses[tone]}`}>{icon}</div>
+      </div>
+    </article>
   );
 }
