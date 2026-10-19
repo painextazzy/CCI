@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import CompanyAvatar from "../../../components/CompanyAvatar";
 
 export interface CompanyRequest {
   id: string;
   companyName: string;
   companyType: "HAUTE_MATSIATRA" | "OTHER_REGION" | "INTERNATIONAL";
+  logoUrl?: string | null;
+  user?: { avatarUrl?: string | null } | null;
   nif: string;
   stat: string;
   managerName: string;
@@ -79,6 +82,15 @@ export default function CompanyDetailModal({
               <span className="w-1 h-4 bg-slate-800 rounded-full" />
               Informations de l&apos;entreprise
             </h3>
+            <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4">
+              <CompanyAvatar
+                src={company.logoUrl || company.user?.avatarUrl}
+                name={company.companyName}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-100"
+                initialsClassName="text-sm font-bold text-slate-500"
+              />
+              <p className="font-bold text-slate-900">{company.companyName}</p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 bg-slate-50/60 rounded-2xl p-4 border border-slate-100">
               <DetailItem label="Raison sociale" value={company.companyName} />
               <DetailItem label="NIF" value={company.nif} mono />

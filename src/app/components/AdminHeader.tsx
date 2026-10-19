@@ -28,7 +28,7 @@ export default function AdminHeader() {
       router.replace("/login");
     } catch (cause) {
       setLogoutError(
-        cause instanceof Error ? cause.message : "La déconnexion a échoué."
+        cause instanceof Error ? cause.message : "La déconnexion a échoué.",
       );
     }
   };
@@ -56,7 +56,6 @@ export default function AdminHeader() {
   return (
     <header className="w-full pt-3 sm:pt-4 pb-2 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto fixed top-0 left-0 right-0 z-50">
       <div className="flex items-center justify-between gap-4 py-2.5 sm:py-3 px-4 sm:px-6 bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-full border border-slate-200/80 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] w-full transition-all duration-300">
-        
         {/* Brand Logo avec image.svg */}
         <Link
           href="/admin/dashboard"
@@ -64,7 +63,7 @@ export default function AdminHeader() {
         >
           <div className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
             <Image
-              src="/logo.svg"
+              src="/logo.png"
               alt="Logo CCI B2B Connect"
               fill
               className="object-contain"
@@ -73,9 +72,6 @@ export default function AdminHeader() {
           </div>
 
           <div className="flex items-baseline gap-1">
-            <span className="text-base sm:text-lg font-extrabold tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">
-              CCI
-            </span>
             <span className="text-base sm:text-lg font-bold tracking-tight text-emerald-600">
               B2B Connect
             </span>
@@ -149,7 +145,10 @@ export default function AdminHeader() {
             <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
           </button>
 
-          <div className="relative pl-2 border-l border-slate-200" ref={dropdownRef}>
+          <div
+            className="relative pl-2 border-l border-slate-200"
+            ref={dropdownRef}
+          >
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-2 group"

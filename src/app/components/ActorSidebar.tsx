@@ -11,22 +11,88 @@ import {
 
 // Résumé des partenaires (démo)
 const partners = [
-  { id: 1, name: "AgriBio Madagascar", initials: "AB", color: "from-emerald-500 to-emerald-700" },
-  { id: 2, name: "Bourbon Exporters", initials: "BE", color: "from-amber-500 to-amber-700" },
-  { id: 3, name: "Tsara Artisans", initials: "TA", color: "from-rose-500 to-rose-700" },
-  { id: 4, name: "MecaPrecision", initials: "MP", color: "from-blue-500 to-blue-700" },
-  { id: 5, name: "GreenPack Solutions", initials: "GP", color: "from-indigo-500 to-indigo-700" },
-  { id: 6, name: "Ranomafana EcoTours", initials: "RE", color: "from-teal-500 to-teal-700" },
+  {
+    id: 1,
+    name: "AgriBio Madagascar",
+    initials: "AB",
+    color: "from-emerald-500 to-emerald-700",
+  },
+  {
+    id: 2,
+    name: "Bourbon Exporters",
+    initials: "BE",
+    color: "from-amber-500 to-amber-700",
+  },
+  {
+    id: 3,
+    name: "Tsara Artisans",
+    initials: "TA",
+    color: "from-rose-500 to-rose-700",
+  },
+  {
+    id: 4,
+    name: "MecaPrecision",
+    initials: "MP",
+    color: "from-blue-500 to-blue-700",
+  },
+  {
+    id: 5,
+    name: "GreenPack Solutions",
+    initials: "GP",
+    color: "from-indigo-500 to-indigo-700",
+  },
+  {
+    id: 6,
+    name: "Ranomafana EcoTours",
+    initials: "RE",
+    color: "from-teal-500 to-teal-700",
+  },
 ];
 
 // Résumé des personnes dans les messages (démo)
 const messagePeople = [
-  { id: 1, name: "Hery R.", initials: "HR", color: "from-emerald-500 to-emerald-700", unread: 2 },
-  { id: 2, name: "Vola R.", initials: "VR", color: "from-rose-500 to-rose-700", unread: 1 },
-  { id: 3, name: "Tojo R.", initials: "TR", color: "from-amber-500 to-amber-700", unread: 0 },
-  { id: 4, name: "Soa R.", initials: "SR", color: "from-indigo-500 to-indigo-700", unread: 0 },
-  { id: 5, name: "Naivo A.", initials: "NA", color: "from-teal-500 to-teal-700", unread: 3 },
-  { id: 6, name: "Fanja R.", initials: "FR", color: "from-pink-500 to-pink-700", unread: 0 },
+  {
+    id: 1,
+    name: "Hery R.",
+    initials: "HR",
+    color: "from-emerald-500 to-emerald-700",
+    unread: 2,
+  },
+  {
+    id: 2,
+    name: "Vola R.",
+    initials: "VR",
+    color: "from-rose-500 to-rose-700",
+    unread: 1,
+  },
+  {
+    id: 3,
+    name: "Tojo R.",
+    initials: "TR",
+    color: "from-amber-500 to-amber-700",
+    unread: 0,
+  },
+  {
+    id: 4,
+    name: "Soa R.",
+    initials: "SR",
+    color: "from-indigo-500 to-indigo-700",
+    unread: 0,
+  },
+  {
+    id: 5,
+    name: "Naivo A.",
+    initials: "NA",
+    color: "from-teal-500 to-teal-700",
+    unread: 3,
+  },
+  {
+    id: 6,
+    name: "Fanja R.",
+    initials: "FR",
+    color: "from-pink-500 to-pink-700",
+    unread: 0,
+  },
 ];
 
 export default function ActorSidebar() {

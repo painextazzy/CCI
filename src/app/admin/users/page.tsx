@@ -15,6 +15,7 @@ import {
   Ban,
   MoreVertical,
 } from "lucide-react";
+import CompanyAvatar from "../../components/CompanyAvatar";
 
 interface Member {
   id: string;
@@ -25,6 +26,7 @@ interface Member {
     id: string;
     companyType: "HAUTE_MATSIATRA" | "OTHER_REGION" | "INTERNATIONAL";
     companyName: string;
+    logoUrl?: string | null;
     managerName: string;
     phone: string;
     sector: string;
@@ -32,6 +34,7 @@ interface Member {
     needsDescription: string;
     verificationStatus: "APPROVED";
   };
+  avatarUrl?: string | null;
 }
 
 export default function AdminUsersPage() {
@@ -230,13 +233,6 @@ export default function AdminUsersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
           {filteredUsers.map((user) => {
             const isInternal = user.company.companyType === "HAUTE_MATSIATRA";
-            const initials = user.company.companyName
-              .split(/\s+/)
-              .slice(0, 2)
-              .map((word) => word[0])
-              .join("")
-              .toUpperCase();
-
             return (
               <div
                 key={user.id}
@@ -302,15 +298,16 @@ export default function AdminUsersPage() {
 
                 {/* ─── En-tête : avatar + nom + badge ─── */}
                 <div className="flex items-start gap-3 mb-4 pr-8">
-                  <div
-                    className={`w-12 h-12 rounded-full bg-gradient-to-br ${
-                      isInternal
-                        ? "from-emerald-500 to-emerald-700"
-                        : "from-indigo-500 to-indigo-700"
-                    } flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0`}
-                  >
-                    {initials}
-                  </div>
+                  <CompanyAvatar
+                    src={user.company.logoUrl || user.avatarUrl}
+                    name={user.company.companyName}
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full shadow-md ${
+                      isInternal ? "bg-emerald-100" : "bg-indigo-100"
+                    }`}
+                    initialsClassName={`text-sm font-bold ${
+                      isInternal ? "text-emerald-700" : "text-indigo-700"
+                    }`}
+                  />
 
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-slate-900 leading-tight mb-0.5 truncate">

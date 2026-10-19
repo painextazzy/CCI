@@ -1,128 +1,390 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { FileText, LoaderCircle, Search, X } from "lucide-react";
+import { getApiRoot } from "../../lib/auth";
+import CompanyAvatar from "../../components/CompanyAvatar";
+
+interface PartnershipContract {
+  id: string;
+  reference: string;
+  senderCompanyName: string;
+  receiverCompanyName: string;
+  title: string;
+  description: string;
+  amount: string;
+  startDate: string;
+  endDate: string;
+  senderCompanyLogoUrl?: string | null;
+  senderLogoUrl?: string | null;
+  senderAvatarUrl?: string | null;
+  receiverCompanyLogoUrl?: string | null;
+  receiverLogoUrl?: string | null;
+  receiverAvatarUrl?: string | null;
+  status: "UPCOMING" | "IN_PROGRESS" | "COMPLETED";
+}
+
+const numberFormatter = new Intl.NumberFormat("fr-FR", {
+  maximumFractionDigits: 0,
+});
+
+const statusLabel: Record<PartnershipContract["status"], string> = {
+  UPCOMING: "À venir",
+  IN_PROGRESS: "En cours",
+  COMPLETED: "Terminé",
+};
+
+const statusClass: Record<PartnershipContract["status"], string> = {
+  UPCOMING: "bg-blue-50 text-blue-700 ring-blue-200",
+  IN_PROGRESS: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  COMPLETED: "bg-slate-100 text-slate-600 ring-slate-200",
+};
+
+function formatDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+
+  const [, year, month, day] = match;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(Number(year), Number(month) - 1, Number(day)));
+}
 
 export default function AdminPartnershipsPage() {
+  const [contracts, setContracts] = useState<PartnershipContract[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedContract, setSelectedContract] =
+    useState<PartnershipContract | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Données fictives illustrant les connexions créées de manière autonome par les entreprises
-  const partnerships = [
-    {
-      id: "p1",
-      senderCompany: "Madagascar Tech & Data",
-      receiverCompany: "AgriExport Matsiatra",
-      purpose: "Intégration d'une solution de traçabilité numérique",
-      date: "10 Oct 2026",
-      status: "ACTIF / EN COURS",
-    },
-    {
-      id: "p2",
-      senderCompany: "Bâtiment Plus Fianarantsoa",
-      receiverCompany: "Énergie Verte Sud",
-      purpose: "Fourniture de matériel pour projet solaire",
-      date: "02 Oct 2026",
-      status: "ACTIF / EN COURS",
-    },
-    {
-      id: "p3",
-      senderCompany: "Textile Haute-Matsiatra",
-      receiverCompany: "Logistique Express Madagascar",
-      purpose: "Contrat de transport et distribution régionale",
-      date: "28 Sep 2026",
-      status: "FINALISÉ",
-    },
-  ];
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadContracts() {
+      try {
+        const response = await fetch(
+          `${getApiRoot()}/admin/dashboard/contracts`,
+          {
+            credentials: "include",
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
+        if (!response.ok) {
+          throw new Error("Impossible de charger les contrats.");
+        }
+        const data: PartnershipContract[] = await response.json();
+        setContracts(data);
+      } catch (cause) {
+        if (controller.signal.aborted) return;
+        setError(
+          cause instanceof Error ? cause.message : "Erreur de chargement.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false);
+      }
+    }
+
+    void loadContracts();
+    return () => controller.abort();
+  }, []);
+
+  const filteredContracts = useMemo(() => {
+    const query = searchTerm.trim().toLocaleLowerCase("fr");
+    if (!query) return contracts;
+    return contracts.filter((contract) =>
+      [
+        contract.reference,
+        contract.senderCompanyName,
+        contract.receiverCompanyName,
+        contract.title,
+        statusLabel[contract.status],
+      ].some((value) => value.toLocaleLowerCase("fr").includes(query)),
+    );
+  }, [contracts, searchTerm]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      
-      {/* 1. En-tête de la page */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900">Observatoire des Partenariats B2B</h1>
-          <p className="text-xs text-slate-500">Suivi des connexions et des synergies professionnelles créées entre les membres.</p>
+          <p className="text-sm font-semibold text-emerald-700">
+            Suivi des contrats
+          </p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
+            Partenariats
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Entreprises ayant concrétisé un partenariat par un contrat accepté.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200/60">
-            {partnerships.length} Connexions Actives
+        {!isLoading && !error && (
+          <span className="self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 sm:self-auto">
+            {numberFormatter.format(contracts.length)} contrats
           </span>
-        </div>
-      </div>
+        )}
+      </header>
 
-      {/* 2. Indicateurs rapides (KPIs de l'écosystème) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total des Mises en Relation</p>
-          <p className="text-2xl font-extrabold text-slate-900 mt-1">42</p>
-          <p className="text-[11px] text-emerald-600 font-medium mt-1">↑ +12% ce mois-ci</p>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Secteur le plus actif</p>
-          <p className="text-xl font-extrabold text-slate-900 mt-1">Agro-industrie & IT</p>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">Forte synergie régionale</p>
-        </div>
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Taux de concrétisation</p>
-          <p className="text-2xl font-extrabold text-emerald-600 mt-1">88%</p>
-          <p className="text-[11px] text-slate-500 font-medium mt-1">Échanges validés entre pairs</p>
-        </div>
-      </div>
+      <label className="relative block">
+        <Search
+          className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          aria-hidden="true"
+        />
+        <input
+          type="search"
+          placeholder="Rechercher par numéro de contrat ou entreprise…"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          aria-label="Rechercher un partenariat"
+          className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+        />
+      </label>
 
-      {/* 3. Barre de recherche */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <svg className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Filtrer par entreprise..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full text-xs pl-9 pr-4 py-2 rounded-xl border border-slate-200 focus:outline-emerald-500 bg-slate-50/50"
-          />
+      {error && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
+        >
+          {error}
         </div>
-      </div>
+      )}
 
-      {/* 4. Tableau de suivi des partenariats */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50/80 border-b border-slate-100 font-semibold text-slate-700">
-              <tr>
-                <th className="px-6 py-3.5">Entreprise Initiatrice</th>
-                <th className="px-6 py-3.5">Entreprise Cible</th>
-                <th className="px-6 py-3.5">Objet / Type de Projet</th>
-                <th className="px-6 py-3.5">Date</th>
-                <th className="px-6 py-3.5">Statut</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {partnerships.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/50 transition">
-                  <td className="px-6 py-4 font-bold text-slate-900">{item.senderCompany}</td>
-                  <td className="px-6 py-4 font-bold text-slate-900">{item.receiverCompany}</td>
-                  <td className="px-6 py-4 text-slate-600">{item.purpose}</td>
-                  <td className="px-6 py-4 text-slate-500">{item.date}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded-full">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-slate-600 hover:text-emerald-600 font-bold transition">
-                      Détails
-                    </button>
-                  </td>
+      <section
+        aria-label="Liste des partenariats"
+        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+      >
+        {isLoading ? (
+          <div className="flex min-h-52 items-center justify-center">
+            <LoaderCircle
+              className="h-6 w-6 animate-spin text-emerald-600"
+              aria-label="Chargement des contrats"
+            />
+          </div>
+        ) : !error && filteredContracts.length === 0 ? (
+          <div className="px-6 py-14 text-center">
+            <FileText className="mx-auto h-8 w-8 text-slate-300" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              {contracts.length === 0
+                ? "Aucun contrat accepté pour le moment."
+                : "Aucun contrat ne correspond à cette recherche."}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1120px] text-left text-sm text-slate-600">
+              <thead className="border-b border-slate-100 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th scope="col" className="px-5 py-4">
+                    N° du contrat
+                  </th>
+                  <th scope="col" className="px-5 py-4">
+                    Acteur initiateur
+                  </th>
+                  <th scope="col" className="px-5 py-4">
+                    Autre acteur
+                  </th>
+                  <th scope="col" className="px-5 py-4">
+                    État du partenariat
+                  </th>
+                  <th scope="col" className="px-5 py-4">
+                    Date de début
+                  </th>
+                  <th scope="col" className="px-5 py-4">
+                    Date de fin
+                  </th>
+                  <th scope="col" className="px-5 py-4 text-right">
+                    Détails
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredContracts.map((contract) => (
+                  <tr
+                    key={contract.id}
+                    className="transition hover:bg-slate-50/70"
+                  >
+                    <td className="whitespace-nowrap px-5 py-4 font-bold text-slate-900">
+                      {contract.reference}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <CompanyAvatar
+                          src={
+                            contract.senderAvatarUrl ||
+                            contract.senderCompanyLogoUrl ||
+                            contract.senderLogoUrl
+                          }
+                          name={contract.senderCompanyName}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100"
+                          initialsClassName="text-[10px] font-bold text-slate-600"
+                        />
+                        <span className="max-w-56 truncate font-semibold text-slate-900">
+                          {contract.senderCompanyName}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <CompanyAvatar
+                          src={
+                            contract.receiverAvatarUrl ||
+                            contract.receiverCompanyLogoUrl ||
+                            contract.receiverLogoUrl
+                          }
+                          name={contract.receiverCompanyName}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100"
+                          initialsClassName="text-[10px] font-bold text-slate-600"
+                        />
+                        <span className="max-w-56 truncate font-semibold text-slate-900">
+                          {contract.receiverCompanyName}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClass[contract.status]}`}
+                      >
+                        {statusLabel[contract.status]}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+                      {formatDate(contract.startDate)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+                      {formatDate(contract.endDate)}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedContract(contract)}
+                        className="rounded-lg px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
+                      >
+                        Voir les détails
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
+      {selectedContract && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSelectedContract(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="partnership-detail-title"
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+                  {selectedContract.reference}
+                </p>
+                <h2
+                  id="partnership-detail-title"
+                  className="mt-1 text-xl font-extrabold text-slate-900"
+                >
+                  Détails du partenariat
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedContract(null)}
+                aria-label="Fermer les détails"
+                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              <DetailRow label="Entreprise initiatrice">
+                <div className="flex items-center gap-2">
+                  <CompanyAvatar
+                    src={
+                      selectedContract.senderAvatarUrl ||
+                      selectedContract.senderCompanyLogoUrl ||
+                      selectedContract.senderLogoUrl
+                    }
+                    name={selectedContract.senderCompanyName}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white"
+                    initialsClassName="text-xs font-bold text-slate-600"
+                  />
+                  {selectedContract.senderCompanyName}
+                </div>
+              </DetailRow>
+              <DetailRow label="Entreprise partenaire">
+                <div className="flex items-center gap-2">
+                  <CompanyAvatar
+                    src={
+                      selectedContract.receiverAvatarUrl ||
+                      selectedContract.receiverCompanyLogoUrl ||
+                      selectedContract.receiverLogoUrl
+                    }
+                    name={selectedContract.receiverCompanyName}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white"
+                    initialsClassName="text-xs font-bold text-slate-600"
+                  />
+                  {selectedContract.receiverCompanyName}
+                </div>
+              </DetailRow>
+              <DetailRow label="Objet du contrat">
+                {selectedContract.title}
+              </DetailRow>
+              <DetailRow label="État du partenariat">
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusClass[selectedContract.status]}`}
+                >
+                  {statusLabel[selectedContract.status]}
+                </span>
+              </DetailRow>
+              <div className="grid grid-cols-2 gap-3">
+                <DetailRow label="Date de début">
+                  {formatDate(selectedContract.startDate)}
+                </DetailRow>
+                <DetailRow label="Date de fin">
+                  {formatDate(selectedContract.endDate)}
+                </DetailRow>
+              </div>
+              <DetailRow label="Montant du contrat">
+                {numberFormatter.format(Number(selectedContract.amount))} Ar
+              </DetailRow>
+              <DetailRow label="Description">
+                <span className="whitespace-pre-wrap">
+                  {selectedContract.description}
+                </span>
+              </DetailRow>
+            </div>
+          </section>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl bg-slate-50 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
+      <div className="mt-1 text-sm font-semibold text-slate-800">{children}</div>
     </div>
   );
 }

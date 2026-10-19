@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   Building2,
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
   Clock3,
   Globe,
   LoaderCircle,
@@ -106,7 +107,7 @@ function formatPartnershipDuration(startValue?: string, endValue?: string) {
     elapsedDays ? `${elapsedDays} jour${elapsedDays > 1 ? "s" : ""}` : "",
   ].filter(Boolean);
 
-  return durationParts.length ? durationParts.join(" ") : "Moins d’un jour";
+  return durationParts.length ? durationParts.join(" ") : "Moins d'un jour";
 }
 
 export default function PartenairesPage() {
@@ -115,6 +116,10 @@ export default function PartenairesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  // ✅ Suivi des cartes dont tous les contrats sont ouverts
+  const [expandedPartners, setExpandedPartners] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     let active = true;
@@ -163,12 +168,11 @@ export default function PartenairesPage() {
     const uniquePartners = new Map<string, PartnerRecord>();
     for (const contract of contracts) {
       const isSender = contract.senderCompanyId === companyId;
-      const partner =
-        isSender
-          ? contract.receiverCompany
-          : contract.receiverCompanyId === companyId
-            ? contract.senderCompany
-            : null;
+      const partner = isSender
+        ? contract.receiverCompany
+        : contract.receiverCompanyId === companyId
+          ? contract.senderCompany
+          : null;
       if (!partner) continue;
 
       const partnerRecord = uniquePartners.get(partner.id) ?? {
@@ -206,9 +210,19 @@ export default function PartenairesPage() {
     });
   }, [partners, searchQuery]);
 
+  // ✅ Toggle "Voir plus / Voir moins"
+  const togglePartnerExpanded = (partnerId: string) => {
+    setExpandedPartners((prev) => {
+      const next = new Set(prev);
+      if (next.has(partnerId)) next.delete(partnerId);
+      else next.add(partnerId);
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-4 pt-6">
-      {/* ─── Barre de recherche avec contour ─── */}
+      {/* ─── Barre de recherche ─── */}
       <div className="relative w-full sm:w-1/2 lg:w-[45%]">
         <Search
           className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
@@ -266,12 +280,20 @@ export default function PartenairesPage() {
                 : `https://${partner.website}`
               : null;
 
+            const isExpanded = expandedPartners.has(partner.id);
+            const hasMoreContracts = partner.contracts.length > 1;
+            // ✅ Affiche 1 contrat par défaut, tous si "Voir plus"
+            const visibleContracts = isExpanded
+              ? partner.contracts
+              : partner.contracts.slice(0, 1);
+            const remainingCount = partner.contracts.length - 1;
+
             return (
               <article
                 key={partner.id}
                 className="rounded-2xl border border-[#F2F2F2] bg-white p-4 transition-colors hover:border-emerald-500"
               >
-                {/* En-tête : logo + nom + secteur */}
+                {/* En-tête : logo + nom cliquable + secteur */}
                 <div className="flex items-center gap-3">
                   {photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -286,9 +308,14 @@ export default function PartenairesPage() {
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-sm font-extrabold text-slate-900">
+                    {/* ✅ Nom cliquable → redirige vers le profil */}
+                    <Link
+                      href={`/acteur/entreprises/${partner.id}`}
+                      className="block truncate text-sm font-extrabold text-slate-900 hover:text-emerald-700 hover:underline transition-colors"
+                      title={`Voir le profil de ${partner.name}`}
+                    >
                       {partner.name}
-                    </h3>
+                    </Link>
                     <p className="truncate text-xs text-slate-500">
                       {partner.sector || "Secteur non renseigné"}
                     </p>
@@ -302,7 +329,7 @@ export default function PartenairesPage() {
                   </span>
                 </div>
 
-                {/* Infos côte à côte avec séparateurs verticaux */}
+                {/* Infos côte à côte */}
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-slate-600">
                   <span className="inline-flex items-center gap-1.5 min-w-0">
                     <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
@@ -343,8 +370,9 @@ export default function PartenairesPage() {
                   )}
                 </div>
 
+                {/* ✅ Partenariats : 1 par défaut + Voir plus */}
                 <div className="mt-4 space-y-3">
-                  {partner.contracts.map((contract) => {
+                  {visibleContracts.map((contract) => {
                     const startDate = formatDate(contract.startDate);
                     const endDate = formatDate(contract.endDate);
                     const duration = formatPartnershipDuration(
@@ -376,7 +404,7 @@ export default function PartenairesPage() {
                                 ? `${startDate} – ${endDate}`
                                 : startDate
                                   ? `À partir du ${startDate}`
-                                  : `Jusqu’au ${endDate}`}
+                                  : `Jusqu'au ${endDate}`}
                             </span>
                             {duration && (
                               <span className="inline-flex items-center gap-1">
@@ -391,16 +419,27 @@ export default function PartenairesPage() {
                   })}
                 </div>
 
-                {/* Pied : bouton */}
-                <div className="mt-4 border-t border-[#F2F2F2] pt-3">
-                  <Link
-                    href={`/acteur/entreprises/${partner.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
+                {/* ✅ "Voir plus" / "Voir moins" */}
+                {hasMoreContracts && (
+                  <button
+                    type="button"
+                    onClick={() => togglePartnerExpanded(partner.id)}
+                    className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 transition-colors"
                   >
-                    Voir le profil
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
+                    {isExpanded ? (
+                      <>
+                        Voir moins
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </>
+                    ) : (
+                      <>
+                        Voir plus ({remainingCount} autre
+                        {remainingCount > 1 ? "s" : ""})
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </>
+                    )}
+                  </button>
+                )}
               </article>
             );
           })}

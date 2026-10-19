@@ -1,680 +1,477 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import Link from "next/link";
 import {
-  ArrowDownRight,
-  ArrowRight,
-  ArrowUpRight,
-  BriefcaseBusiness,
-  Building2,
-  ChartNoAxesCombined,
-  Clock3,
+  Eye,
+  FileClock,
+  Globe2,
+  Handshake,
   LoaderCircle,
-  RefreshCw,
-  ShieldCheck,
-  UserRoundCheck,
-  UsersRound,
+  Megaphone,
+  Users,
 } from "lucide-react";
 import { getApiRoot } from "../../lib/auth";
 
-type VerificationStatus = "PENDING" | "APPROVED" | "REJECTED";
-type AnnouncementStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
-
-interface DashboardCompany {
-  id: string;
-  companyName?: string;
-  sector?: string;
-  verificationStatus?: VerificationStatus;
-  createdAt?: string;
+interface AdminDashboardStatistics {
+  accounts: {
+    local: number;
+    external: number;
+    total: number;
+  };
+  siteVisits: number;
+  pendingRequests: number;
+  contractsInProgress: number;
+  announcements: {
+    active: number;
+    closed: number;
+    total: number;
+  };
+  economicEvolution: {
+    month: string;
+    amount: string;
+  }[];
 }
 
-interface DashboardAnnouncement {
-  id: string;
-  status?: AnnouncementStatus;
-}
+const numberFormatter = new Intl.NumberFormat("fr-FR", {
+  maximumFractionDigits: 0,
+});
 
-interface MonthlyRegistration {
-  key: string;
-  label: string;
-  count: number;
-}
+const currencyFormatter = new Intl.NumberFormat("fr-FR", {
+  maximumFractionDigits: 0,
+});
 
-const numberFormatter = new Intl.NumberFormat("fr-FR");
-const verificationLabels: Record<VerificationStatus, string> = {
-  PENDING: "En attente",
-  APPROVED: "Approuvée",
-  REJECTED: "Refusée",
-};
+const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
+  month: "short",
+  timeZone: "UTC",
+});
 
-const sectorLabels: Record<string, string> = {
-  AGRO: "Agroalimentaire",
-  NTIC: "NTIC & Web",
-  BTP: "BTP & Construction",
-  TOURISM: "Tourisme",
-  COMMERCE: "Commerce",
-  ARTISANAT: "Artisanat",
-};
-
-function formatDate(value?: string): string {
-  if (!value) return "Date inconnue";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date inconnue";
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-function getSixMonthTrend(
-  companies: DashboardCompany[],
-): MonthlyRegistration[] {
-  const now = new Date();
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    return {
-      key,
-      label: new Intl.DateTimeFormat("fr-FR", { month: "short" })
-        .format(date)
-        .replace(".", ""),
-      count: 0,
-    };
-  });
-  const counts = new Map(months.map((month) => [month.key, 0]));
-
-  companies.forEach((company) => {
-    if (!company.createdAt) return;
-    const date = new Date(company.createdAt);
-    if (Number.isNaN(date.getTime())) return;
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    if (counts.has(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
-  });
-
-  return months.map((month) => ({
-    ...month,
-    count: counts.get(month.key) ?? 0,
-  }));
-}
+const ANNOUNCEMENT_STATES = [
+  { key: "active", label: "Actives", color: "#059669" },
+  { key: "closed", label: "Clôturées", color: "#cbd5e1" },
+] as const;
 
 export default function AdminDashboardPage() {
-  const [companies, setCompanies] = useState<DashboardCompany[]>([]);
-  const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>(
-    [],
-  );
+  const [statistics, setStatistics] =
+    useState<AdminDashboardStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let isMounted = true;
+    let requestController: AbortController | null = null;
 
-    async function loadDashboard() {
-      setIsLoading(true);
-      setLoadError(null);
-
+    async function load() {
+      requestController?.abort();
+      const controller = new AbortController();
+      requestController = controller;
       try {
-        const apiRoot = getApiRoot();
-        const [companiesResponse, announcementsResponse] = await Promise.all([
-          fetch(`${apiRoot}/companies`, {
+        const response = await fetch(
+          `${getApiRoot()}/admin/dashboard/statistics`,
+          {
             credentials: "include",
             cache: "no-store",
             signal: controller.signal,
-          }),
-          fetch(`${apiRoot}/announcements`, {
-            credentials: "include",
-            cache: "no-store",
-            signal: controller.signal,
-          }),
-        ]);
-
-        if (!companiesResponse.ok) {
-          throw new Error("Impossible de charger les entreprises.");
+          },
+        );
+        if (!response.ok) {
+          throw new Error("Impossible de charger les statistiques.");
         }
-        if (!announcementsResponse.ok) {
-          throw new Error("Impossible de charger les annonces.");
+        const data: AdminDashboardStatistics = await response.json();
+        if (isMounted) {
+          setStatistics(data);
+          setLastUpdated(new Date());
+          setError(null);
         }
-
-        const [companyData, announcementData] = await Promise.all([
-          companiesResponse.json(),
-          announcementsResponse.json(),
-        ]);
-
-        if (!Array.isArray(companyData) || !Array.isArray(announcementData)) {
-          throw new Error("Les données reçues du serveur sont invalides.");
-        }
-
-        setCompanies(companyData as DashboardCompany[]);
-        setAnnouncements(announcementData as DashboardAnnouncement[]);
-        setUpdatedAt(new Date());
       } catch (cause) {
         if (controller.signal.aborted) return;
-        setLoadError(
-          cause instanceof Error
-            ? cause.message
-            : "Une erreur est survenue lors du chargement du tableau de bord.",
-        );
+        if (isMounted) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Erreur de chargement.",
+          );
+        }
       } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (isMounted && !controller.signal.aborted) setIsLoading(false);
       }
     }
 
-    void loadDashboard();
-    return () => controller.abort();
-  }, [refreshKey]);
-
-  const approvedCount = companies.filter(
-    (company) => company.verificationStatus === "APPROVED",
-  ).length;
-  const pendingCount = companies.filter(
-    (company) => company.verificationStatus === "PENDING",
-  ).length;
-  const rejectedCount = companies.filter(
-    (company) => company.verificationStatus === "REJECTED",
-  ).length;
-
-  const monthlyRegistrations = useMemo(
-    () => getSixMonthTrend(companies),
-    [companies],
-  );
-  const registrationTotal = monthlyRegistrations.reduce(
-    (total, month) => total + month.count,
-    0,
-  );
-  const previousMonthCount =
-    monthlyRegistrations[monthlyRegistrations.length - 2]?.count ?? 0;
-  const currentMonthCount =
-    monthlyRegistrations[monthlyRegistrations.length - 1]?.count ?? 0;
-  const monthlyChange =
-    previousMonthCount === 0
-      ? currentMonthCount > 0
-        ? null
-        : 0
-      : ((currentMonthCount - previousMonthCount) / previousMonthCount) * 100;
-
-  const chartPoints = monthlyRegistrations.map((month, index) => {
-    const maxCount = Math.max(
-      1,
-      ...monthlyRegistrations.map((item) => item.count),
-    );
-    return {
-      ...month,
-      x: 54 + index * 122,
-      y: 174 - (month.count / maxCount) * 126,
+    void load();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 10_000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+      requestController?.abort();
     };
-  });
-  const chartLine = chartPoints.map(({ x, y }) => `${x},${y}`).join(" ");
-  const chartArea = chartPoints.length
-    ? `54,190 ${chartLine} ${chartPoints[chartPoints.length - 1].x},190`
-    : "";
+  }, []);
 
-  const sectorCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    companies.forEach((company) => {
-      const sector = company.sector?.trim() || "OTHER";
-      counts.set(sector, (counts.get(sector) ?? 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([sector, count]) => ({
-        sector,
-        label:
-          sectorLabels[sector] ??
-          (sector === "OTHER" ? "Non renseigné" : sector),
-        count,
-      }))
-      .sort((first, second) => second.count - first.count)
-      .slice(0, 5);
-  }, [companies]);
-
-  const maximumSectorCount = Math.max(
-    1,
-    ...sectorCounts.map((sector) => sector.count),
+  const economicData = useMemo(
+    () =>
+      (statistics?.economicEvolution ?? []).map(({ month, amount }) => ({
+        month,
+        amount: Number(amount),
+      })),
+    [statistics],
   );
-  const recentCompanies = [...companies]
-    .sort((first, second) => {
-      const firstDate = first.createdAt
-        ? new Date(first.createdAt).getTime()
-        : 0;
-      const secondDate = second.createdAt
-        ? new Date(second.createdAt).getTime()
-        : 0;
-      return secondDate - firstDate;
-    })
-    .slice(0, 5);
 
-  const statusCounts: {
-    status: AnnouncementStatus;
-    label: string;
-    count: number;
-    color: string;
-  }[] = [
-    {
-      status: "OPEN",
-      label: "Ouvertes",
-      count: announcements.filter(
-        (announcement) => announcement.status === "OPEN",
-      ).length,
-      color: "bg-emerald-500",
-    },
-    {
-      status: "IN_PROGRESS",
-      label: "En cours",
-      count: announcements.filter(
-        (announcement) => announcement.status === "IN_PROGRESS",
-      ).length,
-      color: "bg-amber-400",
-    },
-    {
-      status: "CLOSED",
-      label: "Clôturées",
-      count: announcements.filter(
-        (announcement) => announcement.status === "CLOSED",
-      ).length,
-      color: "bg-slate-400",
-    },
-  ];
+  const currentMonthValue = economicData.at(-1)?.amount ?? 0;
+  const previousMonthValue = economicData.at(-2)?.amount ?? 0;
+  const monthDifference = currentMonthValue - previousMonthValue;
+
+  const announcementSegments = useMemo(() => {
+    if (!statistics) return [];
+    const total = statistics.announcements.total;
+    let offset = 0;
+    return ANNOUNCEMENT_STATES.map((state) => {
+      const count = statistics.announcements[state.key];
+      const start = offset;
+      offset += total > 0 ? (count / total) * 100 : 0;
+      return {
+        ...state,
+        count,
+        start,
+        end: offset,
+      };
+    });
+  }, [statistics]);
+
+  const announcementChartStyle = useMemo(() => {
+    if (!statistics || statistics.announcements.total === 0) {
+      return { background: "#e2e8f0" };
+    }
+    const stops = announcementSegments
+      .map(({ color, start, end }) => `${color} ${start}% ${end}%`)
+      .join(", ");
+    return { background: `conic-gradient(${stops})` };
+  }, [announcementSegments, statistics]);
 
   return (
-    <div className="space-y-6 pb-8">
-      <section className="flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+    <main className="min-h-screen bg-[#F5F6F8] p-4 sm:p-6 lg:p-8">
+      <header className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-emerald-700">
-            Espace administration
+            Tableau de bord
           </p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-            Tableau de bord analytique
+            Vue d’ensemble
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Vue d’ensemble des entreprises, annonces et inscriptions.
+          <p className="mt-1 text-sm text-slate-500">
+            Indicateurs actualisés depuis la base de données
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {updatedAt && (
-            <span className="text-xs text-slate-500">
-              Mis à jour à{" "}
-              {new Intl.DateTimeFormat("fr-FR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }).format(updatedAt)}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setRefreshKey((current) => current + 1)}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-wait disabled:opacity-60"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-            />
-            Actualiser
-          </button>
-        </div>
-      </section>
+        <p className="inline-flex items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:self-auto">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+          En direct ·{" "}
+          {lastUpdated
+            ? `mis à jour à ${lastUpdated.toLocaleTimeString("fr-FR")}`
+            : "connexion…"}
+        </p>
+      </header>
 
-      {loadError && (
+      {error && (
         <div
-          className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between"
           role="alert"
+          className="mb-5 flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 sm:flex-row sm:items-center sm:justify-between"
         >
-          <p>{loadError}</p>
-          <button
-            type="button"
-            onClick={() => setRefreshKey((current) => current + 1)}
-            className="font-bold underline underline-offset-2"
-          >
-            Réessayer
-          </button>
+          <span>{error} Une nouvelle tentative sera faite automatiquement.</span>
         </div>
       )}
 
-      {isLoading && companies.length === 0 ? (
-        <div className="flex min-h-64 items-center justify-center rounded-3xl bg-white text-emerald-700 shadow-sm ring-1 ring-slate-100">
+      {isLoading && !statistics ? (
+        <div className="flex min-h-64 items-center justify-center rounded-3xl bg-white">
           <LoaderCircle
-            className="h-7 w-7 animate-spin"
-            aria-label="Chargement"
+            className="h-7 w-7 animate-spin text-emerald-600"
+            aria-label="Chargement des statistiques"
           />
         </div>
-      ) : !loadError ? (
+      ) : statistics ? (
         <>
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section
+            aria-label="Indicateurs principaux"
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6"
+          >
             <MetricCard
-              label="Entreprises inscrites"
-              value={companies.length}
-              detail={`${approvedCount} approuvée${approvedCount === 1 ? "" : "s"}`}
-              icon={<Building2 className="h-5 w-5" />}
-              tone="emerald"
+              label="Comptes inscrits"
+              value={statistics.accounts.total}
+              note="Comptes locaux et externes"
+              icon={Users}
+              accent="emerald"
             />
             <MetricCard
-              label="En attente de validation"
-              value={pendingCount}
-              detail="Demandes à examiner"
-              icon={<Clock3 className="h-5 w-5" />}
-              tone="amber"
+              label="Comptes externes"
+              value={statistics.accounts.external}
+              note="Entreprises des autres régions"
+              icon={Globe2}
+              accent="blue"
             />
             <MetricCard
-              label="Membres approuvés"
-              value={approvedCount}
-              detail={`${rejectedCount} refusée${rejectedCount === 1 ? "" : "s"}`}
-              icon={<UserRoundCheck className="h-5 w-5" />}
-              tone="blue"
+              label="Visites du site"
+              value={statistics.siteVisits}
+              note="Pages vues enregistrées"
+              icon={Eye}
+              accent="violet"
             />
             <MetricCard
-              label="Annonces visibles"
-              value={announcements.length}
-              detail={`${statusCounts[0].count} actuellement ouvertes`}
-              icon={<BriefcaseBusiness className="h-5 w-5" />}
-              tone="violet"
+              label="Demandes en attente"
+              value={statistics.pendingRequests}
+              note="Dossiers à traiter"
+              icon={FileClock}
+              accent="amber"
+            />
+            <MetricCard
+              label="Contrats en cours"
+              value={statistics.contractsInProgress}
+              note="Contrats dont la période est active"
+              icon={Handshake}
+              accent="blue"
+            />
+            <MetricCard
+              label="Annonces actives"
+              value={statistics.announcements.active}
+              note="Ouvertes aux échanges"
+              icon={Megaphone}
+              accent="violet"
             />
           </section>
 
-          <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.9fr)]">
-            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+          <section className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-6 xl:col-span-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <div className="flex items-center gap-2 text-slate-900">
-                    <ChartNoAxesCombined className="h-5 w-5 text-emerald-600" />
-                    <h2 className="font-bold">Évolution des inscriptions</h2>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Nouvelles entreprises inscrites sur les six derniers mois
+                  <h2 className="text-base font-bold text-slate-900">
+                    Évolution économique
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Montant des contrats acceptés par mois, sur les six derniers mois
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="sm:text-right">
                   <p className="text-2xl font-extrabold text-slate-900">
-                    {numberFormatter.format(registrationTotal)}
+                    {currencyFormatter.format(currentMonthValue)}{" "}
+                    <span className="text-sm font-bold text-slate-500">Ar</span>
                   </p>
-                  <p className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
-                    {monthlyChange !== null &&
-                      (monthlyChange >= 0 ? (
-                        <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600" />
-                      ) : (
-                        <ArrowDownRight className="h-3.5 w-3.5 text-rose-600" />
-                      ))}
-                    {monthlyChange === null
-                      ? "Nouvelle activité ce mois"
-                      : `${monthlyChange > 0 ? "+" : ""}${Math.round(monthlyChange)} % vs mois précédent`}
+                  <p
+                    className={`mt-1 text-xs font-semibold ${
+                      monthDifference >= 0 ? "text-emerald-700" : "text-rose-700"
+                    }`}
+                  >
+                    {monthDifference > 0 ? "+" : ""}
+                    {currencyFormatter.format(monthDifference)} Ar par rapport au mois précédent
                   </p>
                 </div>
               </div>
-
-              <div className="mt-5 overflow-hidden">
-                <svg
-                  viewBox="0 0 700 238"
-                  className="h-56 w-full overflow-visible"
-                  role="img"
-                  aria-label="Courbe des inscriptions mensuelles sur les six derniers mois"
-                >
-                  <defs>
-                    <linearGradient
-                      id="registration-area"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
-                      <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  {[48, 82, 116, 150, 190].map((y) => (
-                    <line
-                      key={y}
-                      x1="42"
-                      x2="680"
-                      y1={y}
-                      y2={y}
-                      stroke="#e2e8f0"
-                      strokeDasharray="4 6"
-                    />
-                  ))}
-                  {chartPoints.length > 0 && (
-                    <>
-                      <polygon
-                        points={chartArea}
-                        fill="url(#registration-area)"
-                      />
-                      <polyline
-                        points={chartLine}
-                        fill="none"
-                        stroke="#059669"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      {chartPoints.map((point) => (
-                        <g key={point.key}>
-                          <circle
-                            cx={point.x}
-                            cy={point.y}
-                            r="5"
-                            fill="#fff"
-                            stroke="#059669"
-                            strokeWidth="3"
-                          />
-                          <text
-                            x={point.x}
-                            y="218"
-                            textAnchor="middle"
-                            className="fill-slate-500 text-[12px]"
-                          >
-                            {point.label}
-                          </text>
-                          <text
-                            x={point.x}
-                            y={Math.max(34, point.y - 13)}
-                            textAnchor="middle"
-                            className="fill-slate-700 text-[11px] font-semibold"
-                          >
-                            {point.count}
-                          </text>
-                        </g>
-                      ))}
-                    </>
-                  )}
-                </svg>
-              </div>
+              <EconomicChart data={economicData} />
             </div>
 
-            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
-              <div className="flex items-center gap-2 text-slate-900">
-                <BriefcaseBusiness className="h-5 w-5 text-emerald-600" />
-                <h2 className="font-bold">État des annonces</h2>
-              </div>
-              <p className="mt-1 text-sm text-slate-500">
-                Répartition des annonces visibles par statut
+            <div className="rounded-3xl bg-white p-5 shadow-sm sm:p-6">
+              <h2 className="text-base font-bold text-slate-900">
+                État des annonces
+              </h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Répartition des annonces ouvertes et clôturées, sans contrat accepté
               </p>
-              <div className="mt-6 space-y-5">
-                {statusCounts.map((item) => {
-                  const percentage = announcements.length
-                    ? (item.count / announcements.length) * 100
-                    : 0;
-                  return (
-                    <div key={item.status}>
-                      <div className="mb-2 flex items-center justify-between text-sm">
-                        <span className="font-medium text-slate-600">
-                          {item.label}
-                        </span>
-                        <span className="font-bold text-slate-900">
-                          {numberFormatter.format(item.count)}
-                        </span>
-                      </div>
-                      <div
-                        className="h-2 overflow-hidden rounded-full bg-slate-100"
-                        role="progressbar"
-                        aria-label={item.label}
-                        aria-valuenow={item.count}
-                        aria-valuemin={0}
-                        aria-valuemax={announcements.length}
-                      >
-                        <div
-                          className={`h-full rounded-full ${item.color}`}
-                          style={{ width: `${percentage}%` }}
+              <div className="mt-7 flex flex-col items-center gap-7 sm:flex-row sm:justify-center xl:flex-col">
+                <div
+                  role="img"
+                  aria-label={`Répartition des annonces : ${statistics.announcements.active} actives et ${statistics.announcements.closed} clôturées`}
+                  className="relative h-44 w-44 shrink-0 rounded-full"
+                  style={announcementChartStyle}
+                >
+                  <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white">
+                    <span className="text-3xl font-extrabold text-slate-900">
+                      {numberFormatter.format(statistics.announcements.total)}
+                    </span>
+                    <span className="text-xs font-medium text-slate-500">
+                      annonces
+                    </span>
+                  </div>
+                </div>
+                <div className="w-full space-y-3 sm:w-auto xl:w-full">
+                  {announcementSegments.map((segment) => (
+                    <div
+                      key={segment.key}
+                      className="flex items-center justify-between gap-5 text-sm"
+                    >
+                      <span className="flex items-center gap-2 text-slate-600">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: segment.color }}
                         />
-                      </div>
+                        {segment.label}
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {numberFormatter.format(segment.count)}
+                      </span>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-              <Link
-                href="/acteur/opportunites"
-                className="mt-7 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800"
-              >
-                Parcourir les annonces
-                <ArrowRight className="h-4 w-4" />
-              </Link>
             </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 text-slate-900">
-                    <UsersRound className="h-5 w-5 text-emerald-600" />
-                    <h2 className="font-bold">Inscriptions récentes</h2>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Dernières entreprises enregistrées
-                  </p>
-                </div>
-                <Link
-                  href="/admin/companies/pending"
-                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
-                >
-                  Voir les demandes
-                </Link>
-              </div>
-              <div className="mt-5 divide-y divide-slate-100">
-                {recentCompanies.length ? (
-                  recentCompanies.map((company) => {
-                    const status = company.verificationStatus ?? "PENDING";
-                    return (
-                      <div
-                        key={company.id}
-                        className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                            <Building2 className="h-5 w-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-slate-800">
-                              {company.companyName || "Entreprise sans nom"}
-                            </p>
-                            <p className="mt-0.5 text-xs text-slate-500">
-                              {formatDate(company.createdAt)}
-                            </p>
-                          </div>
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                            status === "APPROVED"
-                              ? "bg-emerald-50 text-emerald-700"
-                              : status === "REJECTED"
-                                ? "bg-rose-50 text-rose-700"
-                                : "bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {verificationLabels[status]}
-                        </span>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="py-8 text-center text-sm text-slate-500">
-                    Aucune entreprise enregistrée.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:p-6">
-              <div className="flex items-center gap-2 text-slate-900">
-                <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                <h2 className="font-bold">Secteurs représentés</h2>
-              </div>
-              <p className="mt-1 text-sm text-slate-500">
-                Secteurs d’activité les plus présents chez les membres
+          <section className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-100 bg-white p-4">
+              <p className="text-xs font-semibold text-slate-500">
+                Comptes locaux
               </p>
-              <div className="mt-5 space-y-4">
-                {sectorCounts.length ? (
-                  sectorCounts.map((item) => (
-                    <div key={item.sector}>
-                      <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-                        <span className="truncate font-medium text-slate-600">
-                          {item.label}
-                        </span>
-                        <span className="shrink-0 font-bold text-slate-900">
-                          {numberFormatter.format(item.count)}
-                        </span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-emerald-500"
-                          style={{
-                            width: `${(item.count / maximumSectorCount) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="py-8 text-center text-sm text-slate-500">
-                    Les secteurs apparaîtront dès l’inscription des entreprises.
-                  </p>
-                )}
-              </div>
-              <Link
-                href="/admin/users"
-                className="mt-6 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:text-emerald-800"
-              >
-                Consulter les membres
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
+              <p className="mt-1 text-xl font-extrabold text-slate-900">
+                {numberFormatter.format(statistics.accounts.local)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Entreprises de la Haute Matsiatra
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-white p-4">
+              <p className="text-xs font-semibold text-slate-500">
+                Comptes externes
+              </p>
+              <p className="mt-1 text-xl font-extrabold text-slate-900">
+                {numberFormatter.format(statistics.accounts.external)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Entreprises enregistrées dans d’autres régions
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-white p-4">
+              <p className="text-xs font-semibold text-slate-500">
+                Annonces clôturées
+              </p>
+              <p className="mt-1 text-xl font-extrabold text-slate-900">
+                {numberFormatter.format(statistics.announcements.closed)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Toutes catégories confondues
+              </p>
             </div>
           </section>
         </>
       ) : null}
-    </div>
+    </main>
   );
 }
 
 function MetricCard({
   label,
   value,
-  detail,
-  icon,
-  tone,
+  note,
+  icon: Icon,
+  accent,
 }: {
   label: string;
   value: number;
-  detail: string;
-  icon: ReactNode;
-  tone: "emerald" | "amber" | "blue" | "violet";
+  note: string;
+  icon: typeof Users;
+  accent: "emerald" | "amber" | "blue" | "violet" | "rose";
 }) {
-  const toneClasses = {
+  const accentClasses = {
     emerald: "bg-emerald-50 text-emerald-700",
     amber: "bg-amber-50 text-amber-700",
-    blue: "bg-sky-50 text-sky-700",
+    blue: "bg-blue-50 text-blue-700",
     violet: "bg-violet-50 text-violet-700",
-  };
+    rose: "bg-rose-50 text-rose-700",
+  }[accent];
 
   return (
-    <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <article className="rounded-3xl bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
-            {numberFormatter.format(value)}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">{detail}</p>
+        <p className="text-sm font-semibold text-slate-500">{label}</p>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${accentClasses}`}>
+          <Icon className="h-5 w-5" aria-hidden="true" />
         </div>
-        <div className={`rounded-2xl p-3 ${toneClasses[tone]}`}>{icon}</div>
       </div>
+      <p className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">
+        {numberFormatter.format(value)}
+      </p>
+      <p className="mt-2 min-h-8 text-xs leading-5 text-slate-500">{note}</p>
     </article>
+  );
+}
+
+function EconomicChart({
+  data,
+}: {
+  data: { month: string; amount: number }[];
+}) {
+  const width = 640;
+  const height = 260;
+  const left = 66;
+  const right = 18;
+  const top = 18;
+  const bottom = 42;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const maxAmount = Math.max(...data.map(({ amount }) => amount), 1);
+  const points = data.map(({ amount }, index) => ({
+    x: left + (data.length > 1 ? (index / (data.length - 1)) * plotWidth : 0),
+    y: top + plotHeight - (amount / maxAmount) * plotHeight,
+  }));
+  const linePoints = points.map(({ x, y }) => `${x},${y}`).join(" ");
+
+  return (
+    <div className="mt-5 w-full overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-64 min-w-[520px] w-full"
+        role="img"
+        aria-label="Courbe des montants des contrats acceptés au cours des six derniers mois"
+      >
+        {[0, 0.5, 1].map((fraction) => {
+          const y = top + plotHeight - fraction * plotHeight;
+          return (
+            <g key={fraction}>
+              <line
+                x1={left}
+                x2={width - right}
+                y1={y}
+                y2={y}
+                stroke="#e2e8f0"
+                strokeDasharray="4 5"
+              />
+              <text
+                x={left - 9}
+                y={y + 4}
+                textAnchor="end"
+                fill="#94a3b8"
+                fontSize="10"
+              >
+                {currencyFormatter.format(maxAmount * fraction)}
+              </text>
+            </g>
+          );
+        })}
+        {points.length > 1 && (
+          <polyline
+            points={linePoints}
+            fill="none"
+            stroke="#059669"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        {points.map(({ x, y }, index) => (
+          <g key={data[index].month}>
+            <circle cx={x} cy={y} r="5" fill="#059669" />
+            <circle cx={x} cy={y} r="2" fill="white" />
+            <text
+              x={x}
+              y={height - 12}
+              textAnchor="middle"
+              fill="#64748b"
+              fontSize="10"
+              fontWeight="600"
+            >
+              {MONTH_FORMATTER.format(
+                new Date(`${data[index].month}-01T00:00:00Z`),
+              )}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 }
