@@ -6,14 +6,32 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../providers/AuthProvider";
+import { getApiRoot } from "../lib/auth";
+import { Bell, X } from "lucide-react";
+
+interface AdminNotification {
+  id: string;
+  type: "REGISTRATION" | "PARTNERSHIP";
+  companyName: string;
+  subject: string | null;
+  createdAt: string;
+}
 
 export default function AdminHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationError, setNotificationError] = useState<string | null>(
+    null,
+  );
+  const [toast, setToast] = useState<AdminNotification | null>(null);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentUser = {
     name: user?.email || "Mon compte",
@@ -52,6 +70,100 @@ export default function AdminHeader() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      (user?.role !== "ADMIN" && user?.role !== "CCI_STAFF")
+    ) {
+      return;
+    }
+
+    let isActive = true;
+    let hasLoadedInitialNotifications = false;
+    const knownIds = new Set<string>();
+
+    async function loadNotifications() {
+      try {
+        const response = await fetch(
+          `${getApiRoot()}/admin/dashboard/notifications`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          },
+        );
+        if (!response.ok) {
+          throw new Error("Impossible de charger les notifications.");
+        }
+
+        const incoming: AdminNotification[] = await response.json();
+        if (!isActive) return;
+
+        const newNotifications = hasLoadedInitialNotifications
+          ? incoming.filter((notification) => !knownIds.has(notification.id))
+          : [];
+        if (!hasLoadedInitialNotifications) {
+          setUnreadCount(incoming.length);
+        }
+        incoming.forEach((notification) => knownIds.add(notification.id));
+        setNotifications((current) =>
+          [...incoming, ...current]
+            .filter(
+              (notification, index, all) =>
+                all.findIndex((item) => item.id === notification.id) === index,
+            )
+            .slice(0, 20),
+        );
+        setNotificationError(null);
+
+        if (newNotifications.length > 0) {
+          setUnreadCount((count) => count + newNotifications.length);
+          setToast(newNotifications[0]);
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = setTimeout(() => setToast(null), 7000);
+        }
+        hasLoadedInitialNotifications = true;
+      } catch (cause) {
+        if (!isActive) return;
+        setNotificationError(
+          cause instanceof Error
+            ? cause.message
+            : "Impossible de charger les notifications.",
+        );
+      }
+    }
+
+    void loadNotifications();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadNotifications();
+      }
+    }, 10_000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(interval);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, [isLoading, user?.role]);
+
+  const notificationHref = (notification: AdminNotification) =>
+    notification.type === "REGISTRATION"
+      ? "/admin/companies/pending"
+      : "/admin/partnerships";
+  const notificationTitle = (notification: AdminNotification) =>
+    notification.type === "REGISTRATION"
+      ? "Nouvelle demande d'inscription"
+      : "Nouvelle demande de partenariat";
+  const notificationDescription = (notification: AdminNotification) =>
+    notification.type === "REGISTRATION"
+      ? notification.companyName
+      : `${notification.companyName} : ${notification.subject ?? "Nouvelle annonce de partenariat"}`;
+
+  const dismissToast = () => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(null);
+  };
 
   return (
     <header className="w-full pt-3 sm:pt-4 pb-2 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto fixed top-0 left-0 right-0 z-50">
@@ -101,49 +213,90 @@ export default function AdminHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          <button
-            aria-label="Rechercher"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 transition"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              viewBox="0 0 24 24"
+          <div className="relative">
+            <button
+              type="button"
+              aria-label={
+                unreadCount > 0
+                  ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? "s" : ""}`
+                  : "Notifications"
+              }
+              aria-expanded={isNotificationsOpen}
+              aria-controls="admin-notifications-panel"
+              onClick={() => {
+                setIsNotificationsOpen((open) => !open);
+                setUnreadCount(0);
+              }}
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </button>
-
-          <button
-            aria-label="Notifications"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 transition relative"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.3 21a1.94 1.94 0 0 0 3.4 0"
-              />
-            </svg>
-            <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white" />
-          </button>
+              <Bell className="h-4 w-4" aria-hidden="true" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+            {isNotificationsOpen && (
+              <section
+                id="admin-notifications-panel"
+                aria-label="Notifications récentes"
+                className="absolute right-0 top-full z-[60] mt-3 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Notifications
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsNotificationsOpen(false)}
+                    aria-label="Fermer les notifications"
+                    className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                {notificationError && (
+                  <p role="alert" className="px-4 py-3 text-xs text-rose-700">
+                    {notificationError}
+                  </p>
+                )}
+                {notifications.length > 0 ? (
+                  <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
+                    {notifications.map((notification) => (
+                      <li key={notification.id}>
+                        <Link
+                          href={notificationHref(notification)}
+                          onClick={() => setIsNotificationsOpen(false)}
+                          className="block px-4 py-3 transition hover:bg-slate-50"
+                        >
+                          <p className="text-xs font-bold text-slate-900">
+                            {notificationTitle(notification)}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-xs text-slate-600">
+                            {notificationDescription(notification)}
+                          </p>
+                          <time
+                            dateTime={notification.createdAt}
+                            className="mt-1 block text-[10px] text-slate-400"
+                          >
+                            {new Date(notification.createdAt).toLocaleString(
+                              "fr-FR",
+                            )}
+                          </time>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  !notificationError && (
+                    <p className="px-4 py-6 text-center text-xs text-slate-500">
+                      Aucune nouvelle notification.
+                    </p>
+                  )
+                )}
+              </section>
+            )}
+          </div>
 
           <div
             className="relative pl-2 border-l border-slate-200"
@@ -182,13 +335,6 @@ export default function AdminHeader() {
                   </p>
                 </div>
                 <Link
-                  href="/admin/profile"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 transition text-slate-700 font-medium"
-                >
-                  Mon Profil
-                </Link>
-                <Link
                   href="/admin/settings"
                   onClick={() => setIsProfileOpen(false)}
                   className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 transition text-slate-700 font-medium"
@@ -212,6 +358,40 @@ export default function AdminHeader() {
           </div>
         </div>
       </div>
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 right-5 z-[100] w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-xl"
+        >
+          <div className="flex items-start gap-3 p-4">
+            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-slate-900">
+                {notificationTitle(toast)}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                {notificationDescription(toast)}
+              </p>
+              <Link
+                href={notificationHref(toast)}
+                onClick={dismissToast}
+                className="mt-2 inline-block text-xs font-semibold text-emerald-700"
+              >
+                Voir la demande
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={dismissToast}
+              aria-label="Fermer la notification"
+              className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

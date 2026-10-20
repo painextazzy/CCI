@@ -122,7 +122,7 @@ export default function ActorTopbar() {
               priority
             />
             <div className="hidden items-baseline gap-1.5 sm:flex">
-              <span className="text-xl font-extrabold tracking-tight text-emerald-600">
+              <span className="text-xl font-extrabold tracking-tight text-[#10b981]">
                 B2B Connect
               </span>
             </div>
@@ -175,7 +175,7 @@ export default function ActorTopbar() {
                 <div
                   className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all ${
                     active
-                      ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/40"
+                      ? "bg-[#10b981] text-white shadow-lg shadow-emerald-600/40"
                       : "text-slate-500 group-hover:text-slate-700"
                   }`}
                 >
@@ -195,9 +195,7 @@ export default function ActorTopbar() {
                 </div>
                 <span
                   className={`text-[11px] font-bold leading-none ${
-                    active
-                      ? "text-emerald-600 font-extrabold"
-                      : "text-slate-500"
+                    active ? "text-[#10b981] font-extrabold" : "text-slate-500"
                   }`}
                 >
                   {item.label}

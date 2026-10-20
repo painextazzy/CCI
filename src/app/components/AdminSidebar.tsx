@@ -134,8 +134,8 @@ export default function AdminSidebar() {
                 isLogout
                   ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50/70"
                   : active
-                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
-                  : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50/70"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                    : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50/70"
               }`}
             >
               <svg

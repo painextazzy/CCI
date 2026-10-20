@@ -29,7 +29,7 @@ const numberFormatter = new Intl.NumberFormat("fr-FR", {
 });
 
 const statusLabel: Record<PartnershipContract["status"], string> = {
-  UPCOMING: "À venir",
+  UPCOMING: "En cours", // 👈 Modifié : "À venir" → "En cours"
   IN_PROGRESS: "En cours",
   COMPLETED: "Terminé",
 };
@@ -107,34 +107,15 @@ export default function AdminPartnershipsPage() {
   }, [contracts, searchTerm]);
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-emerald-700">
-            Suivi des contrats
-          </p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
-            Partenariats
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Entreprises ayant concrétisé un partenariat par un contrat accepté.
-          </p>
-        </div>
-        {!isLoading && !error && (
-          <span className="self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 sm:self-auto">
-            {numberFormatter.format(contracts.length)} contrats
-          </span>
-        )}
-      </header>
-
-      <label className="relative block">
+    <main className="space-y-6">
+      {/* Barre de recherche réduite à 50% */}
+      <label className="relative block w-1/2">
         <Search
           className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
           aria-hidden="true"
         />
         <input
           type="search"
-          placeholder="Rechercher par numéro de contrat ou entreprise…"
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
           aria-label="Rechercher un partenariat"
@@ -195,7 +176,7 @@ export default function AdminPartnershipsPage() {
                     Date de fin
                   </th>
                   <th scope="col" className="px-5 py-4 text-right">
-                    Détails
+                    Action
                   </th>
                 </tr>
               </thead>
@@ -384,7 +365,9 @@ function DetailRow({
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
         {label}
       </p>
-      <div className="mt-1 text-sm font-semibold text-slate-800">{children}</div>
+      <div className="mt-1 text-sm font-semibold text-slate-800">
+        {children}
+      </div>
     </div>
   );
 }

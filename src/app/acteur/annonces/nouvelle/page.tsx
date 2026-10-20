@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -27,6 +27,18 @@ export default function NouvelleAnnoncePage() {
     specificLocation: "",
     deadline: "",
   });
+
+  useEffect(() => {
+    if (
+      new URLSearchParams(window.location.search).get("type") === "partenariat"
+    ) {
+      setFormData((current) => ({
+        ...current,
+        type: "DEMANDE",
+        category: "Partenariat commercial",
+      }));
+    }
+  }, []);
 
   const categoriesList = [
     "Sous-traitance",

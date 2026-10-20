@@ -8,12 +8,10 @@ export default function AdminLayout({
 }) {
   return (
     <AuthGuard allowedRoles={["ADMIN", "CCI_STAFF"]}>
-      <div className="min-h-screen bg-[#eaf6f694] p-4 sm:p-6">
+      <div className="min-h-screen bg-[#eaf6f694] py-4 sm:py-6">
         <AdminHeader />
-        <div className="max-w-[1600px] mx-auto pt-20 sm:pt-24">
-          <div className="flex gap-4 sm:gap-5">
-            <main className="flex-1 min-w-0">{children}</main>
-          </div>
+        <div className="mx-auto w-full max-w-7xl px-3 pt-20 sm:px-6 sm:pt-24 lg:px-8">
+          <main className="min-w-0">{children}</main>
         </div>
       </div>
     </AuthGuard>
