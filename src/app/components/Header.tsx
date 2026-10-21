@@ -22,10 +22,12 @@ export default function Header() {
   return (
     <header className="w-full pt-3 sm:pt-4 pb-2 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto fixed top-0 left-0 right-0 z-50">
       <div className="bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-full px-4 sm:px-5 py-2.5 sm:py-3 shadow-[0_4px_25px_-4px_rgba(15,23,42,0.06)] border border-slate-100 flex items-center justify-between transition-all duration-300">
-        
-        {/* Logo Image SVG + Texte */}
-        <Link href="#accueil" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-          <div className="relative w-50 h-50 sm:w-10 sm:h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
+        {/* Logo Image + Texte */}
+        <Link
+          href="#accueil"
+          className="flex items-center gap-2.5 sm:gap-3 group shrink-0"
+        >
+          <div className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
             <Image
               src="/logo.png"
               alt="Logo B2B Connect"
@@ -36,7 +38,7 @@ export default function Header() {
           </div>
 
           <span className="text-base sm:text-xl font-extrabold tracking-tight text-slate-900 group-hover:text-teal-700 transition-colors">
-            <span className="text-teal-600"> B2B connect</span>
+            <span className="text-teal-600">B2B connect</span>
           </span>
         </Link>
 

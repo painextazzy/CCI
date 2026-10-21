@@ -4,8 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getApiRoot } from "../lib/auth";
+import StepEmailForm from "../components/StepEmailForm";
+import StepCodeForm from "../components/StepCodeForm";
+import StepPasswordForm from "../components/StepPasswordForm";
 
 type ApiError = { message?: string | string[] };
+type Step = "EMAIL" | "CODE" | "PASSWORD" | "SUCCESS";
 
 async function getResponseMessage(response: Response, fallback: string) {
   let body: ApiError = {};
@@ -21,12 +25,11 @@ async function getResponseMessage(response: Response, fallback: string) {
 }
 
 export default function ForgotPasswordPage() {
+  const [step, setStep] = useState<Step>("EMAIL");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [isCodeSent, setIsCodeSent] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -53,7 +56,7 @@ export default function ForgotPasswordPage() {
       }
 
       const body = (await response.json()) as { message?: string };
-      setIsCodeSent(true);
+      setStep("CODE");
       setNotice(
         body.message ||
           "Si un compte est associé à cette adresse, un code lui a été envoyé.",
@@ -72,6 +75,20 @@ export default function ForgotPasswordPage() {
   const handleRequestCode = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await requestCode();
+  };
+
+  const handleVerifyCode = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+
+    if (code.length !== 6) {
+      setError("Le code doit contenir exactement 6 chiffres.");
+      return;
+    }
+
+    // Passage à l'étape suivante (Saisie du nouveau mot de passe)
+    setStep("PASSWORD");
   };
 
   const handleResetPassword = async (
@@ -103,7 +120,7 @@ export default function ForgotPasswordPage() {
         );
       }
 
-      setIsComplete(true);
+      setStep("SUCCESS");
     } catch (cause: unknown) {
       setError(
         cause instanceof Error
@@ -187,18 +204,22 @@ export default function ForgotPasswordPage() {
           <section className="lg:col-span-7 flex flex-col justify-center px-2 sm:px-6 lg:px-8 py-4 sm:py-6">
             <div className="text-center mb-8">
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                {isComplete
+                {step === "SUCCESS"
                   ? "Mot de passe modifié"
-                  : isCodeSent
-                    ? "Vérifiez votre e-mail"
-                    : "Mot de passe oublié ?"}
+                  : step === "PASSWORD"
+                    ? "Nouveau mot de passe"
+                    : step === "CODE"
+                      ? "Vérifiez votre e-mail"
+                      : "Mot de passe oublié ?"}
               </h2>
               <p className="text-slate-400 text-sm mt-1.5 font-medium">
-                {isComplete
+                {step === "SUCCESS"
                   ? "Vous pouvez maintenant vous connecter à votre compte."
-                  : isCodeSent
-                    ? `Saisissez le code reçu à l'adresse ${email}, puis choisissez un nouveau mot de passe.`
-                    : "Saisissez votre adresse e-mail pour recevoir un code de vérification."}
+                  : step === "PASSWORD"
+                    ? `Code validé avec succès. Choisissez votre nouveau mot de passe.`
+                    : step === "CODE"
+                      ? `Saisissez le code à 6 chiffres reçu à l'adresse ${email}.`
+                      : "Saisissez votre adresse e-mail pour recevoir un code de vérification."}
               </p>
             </div>
 
@@ -210,7 +231,7 @@ export default function ForgotPasswordPage() {
                 {error}
               </div>
             )}
-            {notice && !isComplete && (
+            {notice && step !== "SUCCESS" && (
               <div
                 role="status"
                 className="max-w-md mx-auto mb-4 w-full p-3 text-xs text-teal-800 bg-teal-50 border border-teal-200 rounded-xl text-center font-medium"
@@ -219,7 +240,7 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
-            {isComplete ? (
+            {step === "SUCCESS" && (
               <div className="max-w-md mx-auto w-full text-center">
                 <Link
                   href="/login"
@@ -228,138 +249,43 @@ export default function ForgotPasswordPage() {
                   Revenir à la connexion
                 </Link>
               </div>
-            ) : isCodeSent ? (
-              <form
-                className="max-w-md mx-auto w-full space-y-5"
+            )}
+
+            {step === "CODE" && (
+              <StepCodeForm
+                code={code}
+                setCode={setCode}
+                isLoading={isLoading}
+                onSubmit={handleVerifyCode}
+                onBackToEmail={() => {
+                  setStep("EMAIL");
+                  setCode("");
+                  setError(null);
+                  setNotice(null);
+                }}
+                onResendCode={requestCode}
+              />
+            )}
+
+            {step === "PASSWORD" && (
+              <StepPasswordForm
+                newPassword={newPassword}
+                setNewPassword={setNewPassword}
+                confirmPassword={confirmPassword}
+                setConfirmPassword={setConfirmPassword}
+                isLoading={isLoading}
                 onSubmit={handleResetPassword}
-              >
-                <div>
-                  <label className="sr-only" htmlFor="code">
-                    Code de vérification
-                  </label>
-                  <input
-                    id="code"
-                    name="code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    required
-                    value={code}
-                    onChange={(event) =>
-                      setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
-                    placeholder="Code à 6 chiffres"
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200/90 rounded-xl text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all text-sm font-medium text-center tracking-[0.4em]"
-                  />
-                </div>
-                <div>
-                  <label className="sr-only" htmlFor="newPassword">
-                    Nouveau mot de passe
-                  </label>
-                  <input
-                    id="newPassword"
-                    name="newPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={6}
-                    required
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    placeholder="Nouveau mot de passe"
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200/90 rounded-xl text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all text-sm font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="sr-only" htmlFor="confirmPassword">
-                    Confirmer le nouveau mot de passe
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={6}
-                    required
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Confirmer le nouveau mot de passe"
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200/90 rounded-xl text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all text-sm font-medium"
-                  />
-                </div>
+                onBackToCode={() => setStep("CODE")}
+              />
+            )}
 
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full text-white font-semibold py-3.5 px-4 rounded-xl transition-all text-sm tracking-wide mt-2 bg-[#0d9488] hover:bg-[#0f766e] shadow-[0_10px_25px_-5px_rgba(13,148,136,0.4)] active:scale-[0.99] disabled:opacity-50"
-                >
-                  {isLoading
-                    ? "Vérification en cours..."
-                    : "Confirmer le code et réinitialiser"}
-                </button>
-
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <button
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => {
-                      setIsCodeSent(false);
-                      setCode("");
-                      setError(null);
-                      setNotice(null);
-                    }}
-                    className="text-slate-400 hover:text-[#0d9488] transition-colors disabled:opacity-50"
-                  >
-                    Modifier l&apos;e-mail
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => void requestCode()}
-                    className="text-[#0d9488] hover:text-[#0f766e] transition-colors disabled:opacity-50"
-                  >
-                    Renvoyer le code
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form
-                className="max-w-md mx-auto w-full space-y-5"
+            {step === "EMAIL" && (
+              <StepEmailForm
+                email={email}
+                setEmail={setEmail}
+                isLoading={isLoading}
                 onSubmit={handleRequestCode}
-              >
-                <div>
-                  <label className="sr-only" htmlFor="email">
-                    E-mail professionnel
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="E-mail professionnel"
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200/90 rounded-xl text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0d9488]/20 focus:border-[#0d9488] transition-all text-sm font-medium"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full text-white font-semibold py-3.5 px-4 rounded-xl transition-all text-sm tracking-wide mt-2 bg-[#0d9488] hover:bg-[#0f766e] shadow-[0_10px_25px_-5px_rgba(13,148,136,0.4)] active:scale-[0.99] disabled:opacity-50"
-                >
-                  {isLoading ? "Envoi en cours..." : "Envoyer le code"}
-                </button>
-                <div className="text-center pt-2">
-                  <Link
-                    href="/login"
-                    className="text-sm font-semibold text-[#0d9488] hover:underline transition-colors"
-                  >
-                    Retour à la connexion
-                  </Link>
-                </div>
-              </form>
+              />
             )}
           </section>
         </div>
