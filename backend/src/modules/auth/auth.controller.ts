@@ -101,15 +101,11 @@ export class AuthController {
   }
 
   private getCookieOptions() {
-    const isProduction =
-      process.env.NODE_ENV === 'production' ||
-      process.env.RENDER === 'true' ||
-      Boolean(process.env.RENDER_SERVICE_ID);
+    const isProduction = process.env.NODE_ENV === 'production';
     return {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? ('none' as const) : ('lax' as const),
-      ...(isProduction ? { partitioned: true } : {}),
       path: '/',
     };
   }

@@ -17,11 +17,13 @@ import { User } from '../users/entities/user.entity';
 import { Interest } from '../interests/entities/interest.entity';
 import { Message } from './entities/message.entity';
 import { MessagesService } from './messages.service';
-import { getAllowedFrontendOrigins } from '../../config/cors';
 
 @WebSocketGateway({
   cors: {
-    origin: getAllowedFrontendOrigins(),
+    origin:
+      process.env.CLIENT_URL ||
+      process.env.FRONTEND_URL ||
+      'http://localhost:3000',
     credentials: true,
   },
 })

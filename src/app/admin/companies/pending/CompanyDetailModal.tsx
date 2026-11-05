@@ -31,7 +31,7 @@ interface CompanyDetailModalProps {
   company: CompanyRequest;
   onClose: () => void;
   onApprove: (id: string) => void;
-  processingAction: "approve" | "bulkApprove" | "reject" | null;
+  processingAction: "approve" | "reject" | null;
   onReject: (company: CompanyRequest) => void;
 }
 

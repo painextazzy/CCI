@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { getAllowedFrontendOrigins } from './config/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,7 +17,7 @@ async function bootstrap() {
 
   // Permettre les requêtes cross-origin depuis le Frontend Next.js
   app.enableCors({
-    origin: getAllowedFrontendOrigins(),
+    origin: process.env.FRONTEND_URL ,
     credentials: true,
   });
 

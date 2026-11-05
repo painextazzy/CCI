@@ -115,34 +115,4 @@ export class CompaniesService {
     return this.companyRepository.save(company);
   }
 
-  async approveMany(companyIds: string[]) {
-    const approvedIds: string[] = [];
-    const failures: { id: string; message: string }[] = [];
-
-    for (const id of new Set(companyIds)) {
-      try {
-        const company = await this.findById(id);
-        if (company.verificationStatus !== VerificationStatus.PENDING) {
-          failures.push({
-            id,
-            message: 'Cette demande n’est plus en attente.',
-          });
-          continue;
-        }
-
-        await this.updateStatus(id, VerificationStatus.APPROVED);
-        approvedIds.push(id);
-      } catch (error) {
-        failures.push({
-          id,
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Impossible d’approuver cette demande.',
-        });
-      }
-    }
-
-    return { approvedIds, failures };
-  }
 }
