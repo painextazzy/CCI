@@ -168,7 +168,15 @@ export default function PendingCompaniesClient({
         throw new Error(message || "Impossible de refuser cette demande.");
       }
       setCompanies((prev) =>
-        prev.filter((company) => company.id !== rejectingCompany.id),
+        prev.map((company) =>
+          company.id === rejectingCompany.id
+            ? {
+                ...company,
+                verificationStatus: "REJECTED",
+                rejectionReason: rejectionReason.trim(),
+              }
+            : company,
+        ),
       );
       setActionMessage("La demande a été refusée.");
       setRejectingCompany(null);

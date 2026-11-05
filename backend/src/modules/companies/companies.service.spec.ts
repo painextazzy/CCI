@@ -9,7 +9,7 @@ import { User } from '../users/entities/user.entity';
 describe('CompaniesService', () => {
   let service: CompaniesService;
   let companyRepository: { save: jest.Mock };
-  let userRepository: { save: jest.Mock; delete: jest.Mock };
+  let userRepository: { save: jest.Mock };
   let mailService: {
     sendCompanyRejectionEmail: jest.Mock;
     sendCompanyApprovalEmail: jest.Mock;
@@ -21,7 +21,6 @@ describe('CompaniesService', () => {
     };
     userRepository = {
       save: jest.fn().mockImplementation(async (user) => user),
-      delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
 
     mailService = {
@@ -73,38 +72,47 @@ describe('CompaniesService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('sends the rejection email and deletes the user and cascaded company', async () => {
+  it('persists rejection status and reason and deactivates the user', async () => {
     const company = {
       id: 'company-id',
       companyName: 'Entreprise test',
       user: {
         id: 'user-id',
         email: 'contact@example.com',
-        isActive: false,
+        isActive: true,
       },
       verificationStatus: VerificationStatus.PENDING,
       rejectionReason: null,
     } as Company;
 
     jest.spyOn(service, 'findById').mockResolvedValue(company);
-    companyRepository.save.mockResolvedValue(company);
+    companyRepository.save.mockImplementation(async (value) => value);
 
-    await service.updateStatus(
+    const result = await service.updateStatus(
       company.id,
       VerificationStatus.REJECTED,
       'Document illisible',
     );
 
+    expect(result.verificationStatus).toBe(VerificationStatus.REJECTED);
+    expect(result.rejectionReason).toBe('Document illisible');
+    expect(companyRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verificationStatus: VerificationStatus.REJECTED,
+        rejectionReason: 'Document illisible',
+      }),
+    );
+    expect(userRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: false }),
+    );
     expect(mailService.sendCompanyRejectionEmail).toHaveBeenCalledWith(
       'contact@example.com',
       'Entreprise test',
       'Document illisible',
     );
-    expect(userRepository.delete).toHaveBeenCalledWith('user-id');
-    expect(companyRepository.save).not.toHaveBeenCalled();
   });
 
-  it('deletes an already rejected company user without sending another email', async () => {
+  it('does not resend an email for an unchanged rejection', async () => {
     const company = {
       id: 'company-id',
       companyName: 'Entreprise test',
@@ -114,6 +122,7 @@ describe('CompaniesService', () => {
     } as Company;
 
     jest.spyOn(service, 'findById').mockResolvedValue(company);
+    companyRepository.save.mockImplementation(async (value) => value);
 
     await service.updateStatus(
       company.id,
@@ -122,11 +131,15 @@ describe('CompaniesService', () => {
     );
 
     expect(mailService.sendCompanyRejectionEmail).not.toHaveBeenCalled();
-    expect(userRepository.delete).toHaveBeenCalledWith('user-id');
-    expect(companyRepository.save).not.toHaveBeenCalled();
+    expect(companyRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verificationStatus: VerificationStatus.REJECTED,
+        rejectionReason: 'Document illisible',
+      }),
+    );
   });
 
-  it('sends the approval email and persists the approved status', async () => {
+  it('persists approval and activates the user before sending email', async () => {
     const company = {
       id: 'company-id',
       companyName: 'Entreprise test',
@@ -136,7 +149,7 @@ describe('CompaniesService', () => {
     } as Company;
 
     jest.spyOn(service, 'findById').mockResolvedValue(company);
-    companyRepository.save.mockResolvedValue(company);
+    companyRepository.save.mockImplementation(async (value) => value);
 
     await service.updateStatus(company.id, VerificationStatus.APPROVED);
 
@@ -152,6 +165,74 @@ describe('CompaniesService', () => {
     );
     expect(userRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({ isActive: true }),
+    );
+  });
+
+  it('keeps approval when the approval email fails', async () => {
+    const company = {
+      id: 'company-id',
+      companyName: 'Entreprise test',
+      user: { email: 'contact@example.com', isActive: false },
+      verificationStatus: VerificationStatus.PENDING,
+      rejectionReason: null,
+    } as Company;
+
+    jest.spyOn(service, 'findById').mockResolvedValue(company);
+    companyRepository.save.mockImplementation(async (value) => value);
+    mailService.sendCompanyApprovalEmail.mockRejectedValue(
+      new Error('SMTP indisponible'),
+    );
+
+    await expect(
+      service.updateStatus(company.id, VerificationStatus.APPROVED),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        verificationStatus: VerificationStatus.APPROVED,
+      }),
+    );
+    expect(userRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: true }),
+    );
+    expect(companyRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verificationStatus: VerificationStatus.APPROVED,
+      }),
+    );
+  });
+
+  it('keeps rejection when the rejection email fails', async () => {
+    const company = {
+      id: 'company-id',
+      companyName: 'Entreprise test',
+      user: {
+        id: 'user-id',
+        email: 'contact@example.com',
+        isActive: true,
+      },
+      verificationStatus: VerificationStatus.PENDING,
+      rejectionReason: null,
+    } as Company;
+
+    jest.spyOn(service, 'findById').mockResolvedValue(company);
+    companyRepository.save.mockImplementation(async (value) => value);
+    mailService.sendCompanyRejectionEmail.mockRejectedValue(
+      new Error('SMTP indisponible'),
+    );
+
+    await expect(
+      service.updateStatus(
+        company.id,
+        VerificationStatus.REJECTED,
+        'Document illisible',
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        verificationStatus: VerificationStatus.REJECTED,
+        rejectionReason: 'Document illisible',
+      }),
+    );
+    expect(userRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: false }),
     );
   });
 

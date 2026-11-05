@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +12,8 @@ import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class CompaniesService {
+  private readonly logger = new Logger(CompaniesService.name);
+
   constructor(
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
@@ -62,30 +65,32 @@ export class CompaniesService {
         throw new BadRequestException('Le motif du refus est requis');
       }
       const user = company.user;
-      if (!user) {
-        throw new BadRequestException(
-          "L'entreprise n'est associée à aucun utilisateur",
-        );
-      }
-      if (
+      const alreadyRejectedWithSameReason =
         company.verificationStatus === VerificationStatus.REJECTED &&
-        company.rejectionReason === rejectionReason
-      ) {
-        await this.userRepository.delete(user.id);
-        return company;
+        company.rejectionReason === rejectionReason &&
+        !user?.isActive;
+
+      company.verificationStatus = VerificationStatus.REJECTED;
+      company.rejectionReason = rejectionReason;
+      const savedCompany = await this.companyRepository.save(company);
+
+      if (user?.isActive) {
+        user.isActive = false;
+        await this.userRepository.save(user);
       }
 
-      const email = user.email;
-      if (!email) {
-        throw new BadRequestException("L'entreprise n'a pas d'adresse e-mail");
+      if (!alreadyRejectedWithSameReason && user?.email) {
+        await this.sendNotificationWithoutBlocking(
+          `Unable to send rejection email to ${user.email}`,
+          () =>
+            this.emailService.sendCompanyRejectionEmail(
+              user.email,
+              company.companyName,
+              rejectionReason,
+            ),
+        );
       }
-      await this.emailService.sendCompanyRejectionEmail(
-        email,
-        company.companyName,
-        rejectionReason,
-      );
-      await this.userRepository.delete(user.id);
-      return company;
+      return savedCompany;
     } else {
       company.rejectionReason = null;
       if (status === VerificationStatus.APPROVED) {
@@ -96,18 +101,22 @@ export class CompaniesService {
           );
         }
 
-        const email = user.email;
-        if (!email) {
-          throw new BadRequestException("L'entreprise n'a pas d'adresse e-mail");
-        }
-        if (!isAlreadyApproved) {
-          await this.emailService.sendCompanyApprovalEmail(
-            email,
-            company.companyName,
-          );
-        }
         user.isActive = true;
         await this.userRepository.save(user);
+        company.verificationStatus = status;
+        const savedCompany = await this.companyRepository.save(company);
+
+        if (!isAlreadyApproved && user.email) {
+          await this.sendNotificationWithoutBlocking(
+            `Unable to send approval email to ${user.email}`,
+            () =>
+              this.emailService.sendCompanyApprovalEmail(
+                user.email,
+                company.companyName,
+              ),
+          );
+        }
+        return savedCompany;
       }
     }
 
@@ -115,4 +124,16 @@ export class CompaniesService {
     return this.companyRepository.save(company);
   }
 
+  private async sendNotificationWithoutBlocking(
+    message: string,
+    send: () => Promise<unknown>,
+  ): Promise<void> {
+    try {
+      await send();
+    } catch (error) {
+      this.logger.error(
+        `${message}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 }
