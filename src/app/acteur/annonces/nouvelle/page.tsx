@@ -13,7 +13,7 @@ import {
   Tag,
   FileText,
 } from "lucide-react";
-import { getApiRoot } from "../../lib/auth";
+import { getApiRoot } from "../../../lib/auth";
 
 export default function NouvelleAnnoncePage() {
   const router = useRouter();
@@ -107,7 +107,10 @@ export default function NouvelleAnnoncePage() {
       </div>
 
       {/* ─── En-tête ─── */}
-      <div data-actor-card className="bg-white p-6 sm:p-8 rounded-[32px] border border-[#F2F2F2] space-y-2">
+      <div
+        data-actor-card
+        className="bg-white p-6 sm:p-8 rounded-[32px] border border-[#F2F2F2] space-y-2"
+      >
         <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
           <Megaphone className="w-5 h-5" />
         </div>
