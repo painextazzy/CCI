@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Search, Check, X, Eye, LoaderCircle, Building2 } from "lucide-react";
+import {
+  Search,
+  Check,
+  X,
+  Eye,
+  LoaderCircle,
+  Building2,
+  CheckCheck,
+} from "lucide-react";
 import CompanyDetailModal, { CompanyRequest } from "./CompanyDetailModal";
 import CompanyAvatar from "../../../components/CompanyAvatar";
 import { getApiRoot } from "../../../lib/auth";
@@ -48,12 +56,17 @@ export default function PendingCompaniesClient({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const [rejectingCompany, setRejectingCompany] =
     useState<CompanyRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [processingAction, setProcessingAction] = useState<
-    "approve" | "reject" | null
+    "approve" | "bulkApprove" | "reject" | null
   >(null);
   const [detailCompany, setDetailCompany] = useState<CompanyRequest | null>(
     null,
@@ -81,31 +94,142 @@ export default function PendingCompaniesClient({
     return safeCompanies.filter((c) => c?.verificationStatus === status).length;
   };
 
+  const visiblePendingCompanies = filteredCompanies.filter(
+    (company) => company.verificationStatus === "PENDING",
+  );
+  const selectedPendingIds = visiblePendingCompanies
+    .filter((company) => selectedCompanyIds.has(company.id))
+    .map((company) => company.id);
+  const allVisiblePendingSelected =
+    visiblePendingCompanies.length > 0 &&
+    visiblePendingCompanies.every((company) =>
+      selectedCompanyIds.has(company.id),
+    );
+
+  const toggleCompanySelection = (companyId: string) => {
+    setSelectedCompanyIds((current) => {
+      const next = new Set(current);
+      if (next.has(companyId)) next.delete(companyId);
+      else next.add(companyId);
+      return next;
+    });
+  };
+
+  const toggleVisiblePendingSelection = () => {
+    setSelectedCompanyIds((current) => {
+      const next = new Set(current);
+      if (allVisiblePendingSelected) {
+        visiblePendingCompanies.forEach((company) => next.delete(company.id));
+      } else {
+        visiblePendingCompanies.forEach((company) => next.add(company.id));
+      }
+      return next;
+    });
+  };
+
   // ─── Actions API ───
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (companyIds: string[]) => {
     if (actionInProgressRef.current) return;
+    if (
+      companyIds.length > 1 &&
+      !window.confirm(
+        `Confirmer l’approbation de ${companyIds.length} demandes sélectionnées ?`,
+      )
+    ) {
+      return;
+    }
+
     actionInProgressRef.current = true;
-    setProcessingAction("approve");
+    setProcessingAction(companyIds.length === 1 ? "approve" : "bulkApprove");
+    setActionError(null);
+    setActionMessage(null);
+
     try {
-      const response = await fetch(
-        `${getApiRoot()}/companies/${id}/status`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ status: "APPROVED" }),
-        },
-      );
-      if (!response.ok) throw new Error("Erreur lors de la mise à jour");
-      setCompanies((prev) =>
-        prev.map((c) =>
-          c.id === id ? { ...c, verificationStatus: "APPROVED" } : c,
+      const approvedIds: string[] = [];
+      const failures: { id: string; message: string }[] = [];
+
+      for (let offset = 0; offset < companyIds.length; offset += 100) {
+        const batch = companyIds.slice(offset, offset + 100);
+        try {
+          const response = await fetch(
+            `${getApiRoot()}/companies/status/bulk`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ companyIds: batch }),
+            },
+          );
+          const result = await response.json().catch(() => null);
+          if (!response.ok) {
+            const message = Array.isArray(result?.message)
+              ? result.message.join(", ")
+              : result?.message;
+            throw new Error(message || "Impossible d’approuver les demandes.");
+          }
+
+          if (Array.isArray(result?.approvedIds)) {
+            approvedIds.push(...(result.approvedIds as string[]));
+          }
+          if (Array.isArray(result?.failures)) {
+            failures.push(
+              ...(result.failures as { id: string; message: string }[]),
+            );
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Impossible d’approuver les demandes.";
+          failures.push(...batch.map((id) => ({ id, message })));
+          failures.push(
+            ...companyIds
+              .slice(offset + batch.length)
+              .map((id) => ({ id, message })),
+          );
+          break;
+        }
+      }
+
+      setCompanies((current) =>
+        current.map((company) =>
+          approvedIds.includes(company.id)
+            ? { ...company, verificationStatus: "APPROVED" }
+            : company,
         ),
       );
-      setDetailCompany(null);
+      setSelectedCompanyIds((current) => {
+        const next = new Set(current);
+        approvedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      if (detailCompany && approvedIds.includes(detailCompany.id)) {
+        setDetailCompany(null);
+      }
+
+      if (failures.length > 0) {
+        const failureNames = failures.slice(0, 5).map((failure) => {
+          const company = safeCompanies.find((item) => item.id === failure.id);
+          return `${company?.companyName ?? failure.id}: ${failure.message}`;
+        });
+        const remainingFailures = failures.length - failureNames.length;
+        setActionError(
+          `${approvedIds.length} demande(s) approuvée(s). Échecs (${failures.length}) : ${failureNames.join(" ; ")}${remainingFailures > 0 ? ` ; et ${remainingFailures} autre(s)` : ""}`,
+        );
+      } else {
+        setActionMessage(
+          approvedIds.length === 1
+            ? "La demande a été approuvée."
+            : `${approvedIds.length} demandes ont été approuvées.`,
+        );
+      }
     } catch (error) {
       console.error(error);
-      alert("Impossible d'approuver l'entreprise.");
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Impossible d’approuver les demandes.",
+      );
     } finally {
       actionInProgressRef.current = false;
       setProcessingAction(null);
@@ -117,6 +241,8 @@ export default function PendingCompaniesClient({
     if (!rejectingCompany || actionInProgressRef.current) return;
     actionInProgressRef.current = true;
     setProcessingAction("reject");
+    setActionError(null);
+    setActionMessage(null);
     try {
       const response = await fetch(
         `${getApiRoot()}/companies/${rejectingCompany.id}/status`,
@@ -132,17 +258,28 @@ export default function PendingCompaniesClient({
       );
       if (!response.ok) {
         const errorBody = await response.json().catch(() => null);
-        throw new Error(errorBody?.message || "Erreur lors du refus");
+        const message = Array.isArray(errorBody?.message)
+          ? errorBody.message.join(", ")
+          : errorBody?.message;
+        throw new Error(message || "Impossible de refuser cette demande.");
       }
       setCompanies((prev) =>
         prev.filter((company) => company.id !== rejectingCompany.id),
       );
+      setSelectedCompanyIds((current) => {
+        const next = new Set(current);
+        next.delete(rejectingCompany.id);
+        return next;
+      });
+      setActionMessage("La demande a été refusée.");
       setRejectingCompany(null);
       setRejectionReason("");
       setDetailCompany(null);
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "Impossible de refuser.");
+      setActionError(
+        error instanceof Error ? error.message : "Impossible de refuser.",
+      );
     } finally {
       actionInProgressRef.current = false;
       setProcessingAction(null);
@@ -188,12 +325,62 @@ export default function PendingCompaniesClient({
         </div>
       </div>
 
+      {(actionError || actionMessage) && (
+        <div
+          role={actionError ? "alert" : "status"}
+          className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+            actionError
+              ? "border-rose-200 bg-rose-50 text-rose-800"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          {actionError || actionMessage}
+        </div>
+      )}
+
+      {visiblePendingCompanies.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+          <p className="text-sm font-medium text-slate-700">
+            {selectedPendingIds.length} demande(s) sélectionnée(s) sur{" "}
+            {visiblePendingCompanies.length} en attente affichée(s).
+          </p>
+          <button
+            type="button"
+            onClick={() => void handleApprove(selectedPendingIds)}
+            disabled={
+              selectedPendingIds.length === 0 || processingAction !== null
+            }
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {processingAction === "bulkApprove" ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCheck className="h-4 w-4" />
+            )}
+            Approuver la sélection
+          </button>
+        </div>
+      )}
+
       {/* ─── Tableau des demandes avec cardbox arrondie 3xl ─── */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm text-slate-600">
             <thead className="border-b border-slate-100 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
+                <th scope="col" className="w-12 px-4 py-4">
+                  <input
+                    type="checkbox"
+                    aria-label="Sélectionner toutes les demandes en attente affichées"
+                    checked={allVisiblePendingSelected}
+                    onChange={toggleVisiblePendingSelection}
+                    disabled={
+                      visiblePendingCompanies.length === 0 ||
+                      processingAction !== null
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                </th>
                 <th scope="col" className="px-6 py-4">
                   Acteur
                 </th>
@@ -230,6 +417,18 @@ export default function PendingCompaniesClient({
                       key={item.id}
                       className="transition hover:bg-slate-50/70"
                     >
+                      <td className="px-4 py-4">
+                        {item.verificationStatus === "PENDING" && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Sélectionner ${item.companyName}`}
+                            checked={selectedCompanyIds.has(item.id)}
+                            onChange={() => toggleCompanySelection(item.id)}
+                            disabled={processingAction !== null}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                        )}
+                      </td>
                       {/* Acteur */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -284,7 +483,7 @@ export default function PendingCompaniesClient({
                           {item.verificationStatus === "PENDING" && (
                             <>
                               <button
-                                onClick={() => handleApprove(item.id)}
+                                onClick={() => void handleApprove([item.id])}
                                 disabled={processingAction !== null}
                                 className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
                                 title="Accepter"
@@ -324,7 +523,7 @@ export default function PendingCompaniesClient({
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-14 text-center text-slate-500"
                   >
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
@@ -349,7 +548,7 @@ export default function PendingCompaniesClient({
         <CompanyDetailModal
           company={detailCompany}
           onClose={() => setDetailCompany(null)}
-          onApprove={handleApprove}
+          onApprove={(id) => void handleApprove([id])}
           processingAction={processingAction}
           onReject={(c) => {
             setRejectingCompany(c);

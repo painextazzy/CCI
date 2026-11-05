@@ -192,4 +192,38 @@ describe('CompaniesService', () => {
       expect.objectContaining({ isActive: true }),
     );
   });
+
+  it('approves multiple pending companies and reports individual failures', async () => {
+    const firstCompany = {
+      id: 'company-id-1',
+      companyName: 'Entreprise 1',
+      user: { email: 'contact1@example.com', isActive: false },
+      verificationStatus: VerificationStatus.PENDING,
+    } as Company;
+    const secondCompany = {
+      id: 'company-id-2',
+      companyName: 'Entreprise 2',
+      user: { email: 'contact2@example.com', isActive: false },
+      verificationStatus: VerificationStatus.PENDING,
+    } as Company;
+    jest
+      .spyOn(service, 'findById')
+      .mockResolvedValueOnce(firstCompany)
+      .mockResolvedValueOnce(firstCompany)
+      .mockResolvedValueOnce(secondCompany)
+      .mockResolvedValueOnce(secondCompany);
+    mailService.sendCompanyApprovalEmail
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Échec envoi e-mail'));
+    companyRepository.save.mockImplementation(async (company) => company);
+
+    await expect(
+      service.approveMany(['company-id-1', 'company-id-2']),
+    ).resolves.toEqual({
+      approvedIds: ['company-id-1'],
+      failures: [
+        { id: 'company-id-2', message: 'Échec envoi e-mail' },
+      ],
+    });
+  });
 });
