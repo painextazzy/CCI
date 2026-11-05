@@ -55,7 +55,7 @@ import { SiteVisit } from './modules/admin-dashboard/entities/site-visit.entity'
           SiteVisit,
         ],
 
-        synchronize: true, // À mettre sur false en production
+        synchronize: false, // À mettre sur false en production
       }),
     }),
 
