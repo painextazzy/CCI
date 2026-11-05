@@ -9,6 +9,7 @@ import {
   MapPin,
   Pencil,
   Plus,
+  Search,
   Save,
   Trash2,
   X,
@@ -504,6 +505,7 @@ export default function ActorProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"ALL" | AnnouncementStatus>("ALL");
+  const [announcementSearch, setAnnouncementSearch] = useState("");
 
   // Chargement annonces
   const load = useCallback(async () => {
@@ -703,10 +705,23 @@ export default function ActorProfilePage() {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-    return filter === "ALL"
-      ? sorted
-      : sorted.filter((a) => a.status === filter);
-  }, [announcements, filter]);
+    const query = announcementSearch.trim().toLocaleLowerCase("fr");
+    return sorted.filter((announcement) => {
+      const matchesStatus =
+        filter === "ALL" || announcement.status === filter;
+      const matchesSearch =
+        !query ||
+        [
+          announcement.title,
+          announcement.category,
+          announcement.description,
+          announcement.type,
+          STATUS_LABELS[announcement.status],
+          announcement.specificLocation ?? "",
+        ].some((value) => value.toLocaleLowerCase("fr").includes(query));
+      return matchesStatus && matchesSearch;
+    });
+  }, [announcements, announcementSearch, filter]);
 
   const barData = [
     { label: "Publiées", value: stats.published, color: "#2EA043" },
@@ -880,33 +895,49 @@ export default function ActorProfilePage() {
         </div>
 
         {announcements.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            {filters.map((f) => {
-              const active = filter === f.value;
-              return (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => setFilter(f.value)}
-                  className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
-                    active
-                      ? "bg-[#2EA043] text-white border border-[#2EA043]"
-                      : "border border-[#F2F2F2] bg-white text-slate-600 hover:bg-[#FAFAFA]"
-                  }`}
-                >
-                  {f.label}
-                  <span
-                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
+          <div className="space-y-3">
+            <label className="relative block w-full">
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={announcementSearch}
+                onChange={(event) => setAnnouncementSearch(event.target.value)}
+                aria-label="Rechercher dans l’historique des annonces"
+                placeholder="Rechercher une annonce..."
+                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              {filters.map((f) => {
+                const active = filter === f.value;
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setFilter(f.value)}
+                    className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
                       active
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-100 text-slate-500"
+                        ? "bg-[#2EA043] text-white border border-[#2EA043]"
+                        : "border border-[#F2F2F2] bg-white text-slate-600 hover:bg-[#FAFAFA]"
                     }`}
                   >
-                    {f.count}
-                  </span>
-                </button>
-              );
-            })}
+                    {f.label}
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
+                        active
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {f.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -963,10 +994,15 @@ export default function ActorProfilePage() {
             className="rounded-3xl border border-dashed border-[#F2F2F2] bg-white px-6 py-10 text-center"
           >
             <p className="text-sm font-semibold text-slate-500">
-              Aucune annonce dans cette catégorie
+              {announcementSearch.trim()
+                ? "Aucune annonce ne correspond à cette recherche."
+                : "Aucune annonce dans cette catégorie"}
             </p>
             <button
-              onClick={() => setFilter("ALL")}
+              onClick={() => {
+                setFilter("ALL");
+                setAnnouncementSearch("");
+              }}
               className="mt-3 text-xs font-bold text-emerald-600 hover:underline"
             >
               Voir toutes les annonces

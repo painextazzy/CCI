@@ -94,7 +94,7 @@ export default function NotificationsMenu() {
         <section
           id="actor-notifications-panel"
           aria-label="Notifications récentes"
-          className="absolute right-0 top-full z-[60] mt-3 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+          className="fixed inset-x-3 top-20 z-[60] flex max-h-[calc(100dvh-10rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 sm:w-[min(22rem,calc(100vw-2rem))] sm:max-h-[calc(100vh-7rem)]"
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
@@ -122,7 +122,7 @@ export default function NotificationsMenu() {
           )}
 
           {notifications.length > 0 ? (
-            <ul className="max-h-72 overflow-y-auto">
+            <ul className="min-h-0 flex-1 overflow-y-auto">
               {notifications.map((notification) => (
                 <li key={notification.id}>
                   <Link

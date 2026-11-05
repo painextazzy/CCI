@@ -253,7 +253,7 @@ export default function AdminHeader() {
               <section
                 id="admin-notifications-panel"
                 aria-label="Notifications récentes"
-                className="absolute right-0 top-full z-[60] mt-3 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                className="fixed inset-x-3 top-24 z-[60] flex max-h-[calc(100dvh-10rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-3 sm:w-[min(22rem,calc(100vw-2rem))] sm:max-h-[calc(100vh-7rem)]"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                   <h2 className="text-sm font-bold text-slate-900">
@@ -274,7 +274,7 @@ export default function AdminHeader() {
                   </p>
                 )}
                 {notifications.length > 0 ? (
-                  <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
+                  <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
                     {notifications.map((notification) => (
                       <li key={notification.id}>
                         <Link
@@ -386,7 +386,9 @@ export default function AdminHeader() {
               aria-label={link.label}
               aria-current={active ? "page" : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[9px] font-semibold transition ${
-                active ? "text-emerald-700" : "text-slate-500"
+                active
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-slate-500"
               }`}
             >
               <Icon
@@ -402,7 +404,7 @@ export default function AdminHeader() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-5 right-5 z-[100] w-[min(26rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-xl"
+          className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[100] w-auto overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-xl sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(26rem,calc(100vw-2rem))]"
         >
           <div className="flex items-start gap-3 p-4">
             <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
