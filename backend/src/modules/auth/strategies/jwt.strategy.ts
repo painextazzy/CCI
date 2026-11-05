@@ -4,7 +4,6 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import type { Request } from 'express';
 import { User } from '../../users/entities/user.entity';
 
 export interface JwtPayload {
@@ -21,18 +20,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly userRepository: Repository<User>,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        (request: Request) => {
-          const cookie = request.headers?.cookie
-            ?.split(';')
-            .map((part) => part.trim())
-            .find((part) => part.startsWith('cci_b2b_token='));
-          return cookie ? decodeURIComponent(cookie.slice('cci_b2b_token='.length)) : null;
-        },
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ]),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET', 'secretKeyByDefault123'),
+      secretOrKey: configService.get<string>(
+        'JWT_SECRET',
+        'secretKeyByDefault123',
+      ),
     });
   }
 

@@ -21,12 +21,59 @@ export type AuthUser = {
   } | null;
 };
 
+const ACCESS_TOKEN_STORAGE_KEY = "cci_access_token";
+export const AUTH_UNAUTHORIZED_EVENT = "cci:unauthorized";
+
+export function getAccessToken() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+}
+
+export function setAccessToken(token: string) {
+  if (typeof window === "undefined" || !token) {
+    throw new Error("Impossible d’enregistrer le jeton d’authentification.");
+  }
+  window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+}
+
+export function clearAccessToken() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+}
+
+export async function apiFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = getAccessToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(input, {
+    ...init,
+    headers,
+    credentials: "omit",
+  });
+
+  if (response.status === 401 && token && typeof window !== "undefined") {
+    clearAccessToken();
+    window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+  }
+
+  return response;
+}
+
 export function getRoleHome(role: AuthUser["role"]) {
   return role === "COMPANY" ? "/acteur/opportunites" : "/admin/dashboard";
 }
 
 export function getApiRoot() {
-  const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
+  const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(
+    /\/+$/,
+    "",
+  );
   const productionApiUrl = "https://cci-lsy3.onrender.com";
 
   if (!configuredApiUrl) {

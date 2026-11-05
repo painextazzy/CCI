@@ -12,7 +12,10 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import type { CompanyRegistrationFiles } from './auth.service';
@@ -34,14 +37,13 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { accessToken, ...result } = await this.authService.login(loginDto);
-    response.cookie(AUTH_COOKIE_NAME, accessToken, this.getCookieOptions());
-    return result;
+    this.clearLegacyAuthCookie(response);
+    return this.authService.login(loginDto);
   }
 
   @Post('logout')
   logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie(AUTH_COOKIE_NAME, this.getCookieOptions());
+    this.clearLegacyAuthCookie(response);
     return { message: 'Déconnexion réussie' };
   }
 
@@ -80,8 +82,15 @@ export class AuthController {
     @Req() request: Request & { user: { id: string } },
     @UploadedFile() photo: Express.Multer.File | undefined,
   ) {
-    if (!photo || !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(photo.mimetype)) {
-      throw new BadRequestException('Veuillez sélectionner une image JPEG, PNG, WebP ou GIF.');
+    if (
+      !photo ||
+      !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(
+        photo.mimetype,
+      )
+    ) {
+      throw new BadRequestException(
+        'Veuillez sélectionner une image JPEG, PNG, WebP ou GIF.',
+      );
     }
     return this.authService.updateProfilePhoto(request.user.id, photo);
   }
@@ -100,13 +109,23 @@ export class AuthController {
     return this.authService.registerCompany(body, files);
   }
 
-  private getCookieOptions() {
-    const isProduction = process.env.NODE_ENV === 'production';
-    return {
+  private clearLegacyAuthCookie(response: Response) {
+    const isProduction =
+      process.env.NODE_ENV === 'production' ||
+      process.env.RENDER === 'true' ||
+      Boolean(process.env.RENDER_SERVICE_ID);
+    const options = {
       httpOnly: true,
       secure: isProduction,
       sameSite: isProduction ? ('none' as const) : ('lax' as const),
       path: '/',
     };
+    response.clearCookie(AUTH_COOKIE_NAME, options);
+    if (isProduction) {
+      response.clearCookie(AUTH_COOKIE_NAME, {
+        ...options,
+        partitioned: true,
+      });
+    }
   }
 }

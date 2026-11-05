@@ -19,6 +19,7 @@ import type { Response } from 'express';
 import { MessagesService } from './messages.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MessagesGateway } from './messages.gateway';
+import { CompanyContextService } from '../companies/company-context.service';
 
 const allowedMessageFileTypes = new Set([
   'image/jpeg',
@@ -42,16 +43,14 @@ export class MessagesController {
   constructor(
     private readonly messagesService: MessagesService,
     private readonly messagesGateway: MessagesGateway,
+    private readonly companyContext: CompanyContextService,
   ) {}
 
   @Get('unread-count')
   async getUnreadCount(
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
     return {
       count: await this.messagesService.getUnreadMessageCount(companyId),
     };
@@ -77,13 +76,10 @@ export class MessagesController {
   )
   async uploadAttachment(
     @Param('interestId') interestId: string,
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
     @UploadedFile() file: Express.Multer.File | undefined,
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
     if (!file) {
       throw new BadRequestException('Veuillez sélectionner un fichier.');
     }
@@ -105,12 +101,9 @@ export class MessagesController {
   async updateMessage(
     @Param('messageId') messageId: string,
     @Body() body: { content?: unknown },
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
     if (typeof body?.content !== 'string') {
       throw new BadRequestException('Le contenu du message est invalide.');
     }
@@ -135,12 +128,9 @@ export class MessagesController {
   @Delete(':messageId')
   async deleteMessage(
     @Param('messageId') messageId: string,
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
 
     const result = await this.messagesService.deleteMessage(
       messageId,
@@ -159,12 +149,9 @@ export class MessagesController {
   async acceptContract(
     @Param('messageId') messageId: string,
     @Body() body: { signerName?: unknown },
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
 
     const result = await this.messagesService.acceptContract(
       messageId,
@@ -181,13 +168,10 @@ export class MessagesController {
   @Get('contracts/:contractId/pdf')
   async getContractPdf(
     @Param('contractId') contractId: string,
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
     @Res() response: Response,
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
 
     const { reference, pdfData } = await this.messagesService.getContractPdf(
       contractId,
@@ -204,24 +188,18 @@ export class MessagesController {
 
   @Get('contracts')
   async getContracts(
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
     return this.messagesService.getContractsForCompany(companyId);
   }
 
   @Get(':interestId')
   async getHistory(
     @Param('interestId') interestId: string,
-    @Req() request: Request & { user: { company?: { id: string } | null } },
+    @Req() request: Request & { user: { id: string } },
   ) {
-    const companyId = request.user.company?.id;
-    if (!companyId) {
-      throw new BadRequestException('Entreprise non identifiée.');
-    }
+    const companyId = (await this.companyContext.getForUser(request.user.id)).id;
     return this.messagesService.getMessagesByInterest(interestId, companyId);
   }
 }

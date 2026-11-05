@@ -5,11 +5,12 @@ import { CompaniesService } from './companies.service';
 import { CompaniesController } from './companies.controller';
 import { MailService } from '../../mail/email.service';
 import { User } from '../users/entities/user.entity';
+import { CompanyContextService } from './company-context.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Company, User])],
   controllers: [CompaniesController],
-  providers: [CompaniesService, MailService],
-  exports: [CompaniesService, TypeOrmModule],
+  providers: [CompaniesService, CompanyContextService, MailService],
+  exports: [CompaniesService, CompanyContextService, TypeOrmModule],
 })
 export class CompaniesModule {}

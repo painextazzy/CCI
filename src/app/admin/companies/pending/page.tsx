@@ -1,12 +1,12 @@
 import PendingCompaniesClient from "./PendingCompaniesClient";
 import type { CompanyRequest } from "./PendingCompaniesClient";
-import { getApiRoot } from "../../../lib/auth";
+import { apiFetch, getApiRoot } from "../../../lib/auth";
 
 export default async function PendingCompaniesPage() {
   let companies: CompanyRequest[] = [];
 
   try {
-    const res = await fetch(`${getApiRoot()}/companies`, {
+    const res = await apiFetch(`${getApiRoot()}/companies`, {
       cache: "no-store",
     });
 

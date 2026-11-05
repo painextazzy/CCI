@@ -12,7 +12,7 @@ import {
   Step5,
   Step6,
 } from "./RegisterSteps";
-import { getApiRoot, getRoleHome } from "../lib/auth";
+import { apiFetch, getApiRoot, getRoleHome } from "../lib/auth";
 import { useAuth } from "../providers/AuthProvider";
 
 export default function RegisterPage() {
@@ -201,7 +201,7 @@ export default function RegisterPage() {
       Object.entries(registrationData).forEach(([key, value]) => payload.append(key, value));
       if (formData.kbisFile) payload.append("kbisFile", formData.kbisFile);
 
-      const res = await fetch(`${getApiRoot()}/auth/register`, {
+      const res = await apiFetch(`${getApiRoot()}/auth/register`, {
         method: "POST",
         body: payload,
       });

@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 
@@ -513,8 +513,7 @@ export default function ActorProfilePage() {
     setIsLoading(true);
     setError(null);
     try {
-      const r = await fetch(`${getApiRoot()}/announcements/mine`, {
-        credentials: "include",
+      const r = await apiFetch(`${getApiRoot()}/announcements/mine`, {
         cache: "no-store",
       });
       if (!r.ok)
@@ -540,8 +539,7 @@ export default function ActorProfilePage() {
       setIsLoadingContracts(true);
       setContractsError(null);
       try {
-        const response = await fetch(`${getApiRoot()}/messages/contracts`, {
-          credentials: "include",
+        const response = await apiFetch(`${getApiRoot()}/messages/contracts`, {
           cache: "no-store",
         });
         if (!response.ok) {
@@ -592,10 +590,9 @@ export default function ActorProfilePage() {
     if (!editingId) return;
     setIsSaving(true);
     try {
-      const r = await fetch(`${getApiRoot()}/announcements/${editingId}`, {
+      const r = await apiFetch(`${getApiRoot()}/announcements/${editingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           ...form,
           specificLocation: form.specificLocation || null,
@@ -622,9 +619,8 @@ export default function ActorProfilePage() {
     if (!window.confirm(`Supprimer « ${a.title} » ?`)) return;
     setDeletingId(a.id);
     try {
-      const r = await fetch(`${getApiRoot()}/announcements/${a.id}`, {
+      const r = await apiFetch(`${getApiRoot()}/announcements/${a.id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!r.ok) throw new Error((await r.json()).message || "Échec");
       setAnnouncements((prev) => prev.filter((x) => x.id !== a.id));

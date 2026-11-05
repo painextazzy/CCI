@@ -24,10 +24,11 @@ import { MessagesService } from './messages.service';
       process.env.CLIENT_URL ||
       process.env.FRONTEND_URL ||
       'http://localhost:3000',
-    credentials: true,
   },
 })
-export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class MessagesGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(MessagesGateway.name);
 
   @WebSocketServer()
@@ -95,19 +96,14 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   async handleConnection(client: Socket) {
-    const cookie = client.handshake.headers.cookie
-      ?.split(';')
-      .map((part) => part.trim())
-      .find((part) => part.startsWith('cci_b2b_token='));
-
-    if (!cookie) {
+    const token = client.handshake.auth?.token;
+    if (typeof token !== 'string' || !token) {
       client.disconnect(true);
       return;
     }
 
     let userId: string;
     try {
-      const token = decodeURIComponent(cookie.slice('cci_b2b_token='.length));
       const payload = await this.jwtService.verifyAsync<{ sub: string }>(token);
       userId = payload.sub;
     } catch {
@@ -252,10 +248,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     try {
       const { markedReadCount, markedMessageIds, senderCompanyId } =
-        await this.messagesService.markMessagesRead(
-          data.interestId,
-          companyId,
-        );
+        await this.messagesService.markMessagesRead(data.interestId, companyId);
       if (markedReadCount > 0) {
         this.server.to(`company_${senderCompanyId}`).emit('messagesRead', {
           interestId: data.interestId,
@@ -296,10 +289,7 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     },
     @ConnectedSocket() client: Socket,
     @Ack()
-    acknowledge?: (response: {
-      ok: boolean;
-      error?: string;
-    }) => void,
+    acknowledge?: (response: { ok: boolean; error?: string }) => void,
   ) {
     const companyId = client.data.companyId;
     if (
@@ -314,10 +304,10 @@ export class MessagesGateway implements OnGatewayConnection, OnGatewayDisconnect
     try {
       const { message, recipientCompanyId } =
         await this.messagesService.createMessage(
-        data.interestId,
-        companyId,
-        data.content,
-      );
+          data.interestId,
+          companyId,
+          data.content,
+        );
 
       this.publishMessage(data.interestId, recipientCompanyId, message);
       acknowledge?.({ ok: true });

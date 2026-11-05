@@ -16,7 +16,7 @@ import {
   HiOutlineArrowRight,
   HiOutlineClock,
 } from "react-icons/hi2";
-import { getApiRoot } from "../../../lib/auth";
+import { apiFetch, getApiRoot } from "../../../lib/auth";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
 
 // ─────────────────────────────────────────────────────────
@@ -151,9 +151,8 @@ export default function CompanyDetailPage() {
         setLoading(true);
         setError(null);
 
-        const companyRes = await fetch(
+        const companyRes = await apiFetch(
           `${getApiRoot()}/companies/${companyId}`,
-          { credentials: "include" },
         );
 
         if (!companyRes.ok) {
@@ -165,8 +164,7 @@ export default function CompanyDetailPage() {
         const companyData = await companyRes.json();
         setCompany(companyData);
 
-        const annRes = await fetch(`${getApiRoot()}/announcements`, {
-          credentials: "include",
+        const annRes = await apiFetch(`${getApiRoot()}/announcements`, {
         });
 
         if (annRes.ok) {

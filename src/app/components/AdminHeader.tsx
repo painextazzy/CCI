@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../providers/AuthProvider";
-import { getApiRoot } from "../lib/auth";
+import { apiFetch, getApiRoot } from "../lib/auth";
 import {
   Bell,
   ClipboardList,
@@ -98,10 +98,9 @@ export default function AdminHeader() {
 
     async function loadNotifications() {
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${getApiRoot()}/admin/dashboard/notifications`,
           {
-            credentials: "include",
             cache: "no-store",
           },
         );

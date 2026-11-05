@@ -14,7 +14,7 @@ import {
   PlusCircle,
   Globe,
 } from "lucide-react";
-import { getApiRoot } from "../lib/auth";
+import { apiFetch, getApiRoot } from "../lib/auth";
 import { useAuth } from "../providers/AuthProvider";
 
 // Alignement exact avec votre backend NestJS / TypeORM
@@ -174,12 +174,11 @@ export default function OpportunitiesPage({
       setInterestFeedback(null);
 
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${getApiRoot()}/interests/${opportunity.id}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify({}),
           },
         );
@@ -220,10 +219,9 @@ export default function OpportunitiesPage({
         setLoading(true);
         setError(null);
 
-        const res = await fetch(`${getApiRoot()}/announcements`, {
+        const res = await apiFetch(`${getApiRoot()}/announcements`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
         });
 
         if (!res.ok) {

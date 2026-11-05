@@ -10,7 +10,14 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { getApiRoot, type AuthUser } from "../lib/auth";
+import {
+  apiFetch,
+  AUTH_UNAUTHORIZED_EVENT,
+  clearAccessToken,
+  getAccessToken,
+  getApiRoot,
+  type AuthUser,
+} from "../lib/auth";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -41,8 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${getApiRoot()}/auth/me`, {
-        credentials: "include",
+      if (!getAccessToken()) {
+        if (currentRequest === requestVersion.current) {
+          setUser(null);
+        }
+        return null;
+      }
+
+      const response = await apiFetch(`${getApiRoot()}/auth/me`, {
         cache: "no-store",
       });
       if (response.status === 401) {
@@ -76,22 +89,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    const response = await fetch(`${getApiRoot()}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (!response.ok) {
-      throw new Error("La déconnexion a échoué. Veuillez réessayer.");
+    try {
+      const response = await fetch(`${getApiRoot()}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Le cookie de session précédent n’a pas pu être effacé.");
+      }
+    } catch (cause) {
+      console.error("Impossible d’effacer l’ancien cookie de session.", cause);
+    } finally {
+      clearAccessToken();
+      requestVersion.current += 1;
+      setUser(null);
+      setError(null);
+      setIsLoading(false);
     }
-    requestVersion.current += 1;
-    setUser(null);
-    setError(null);
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
     void refreshUser().catch(() => undefined);
   }, [refreshUser]);
+
+  useEffect(() => {
+    if (getAccessToken()) return;
+
+    void (async () => {
+      try {
+        const response = await fetch(`${getApiRoot()}/auth/logout`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error("Impossible d’effacer l’ancien cookie de session.");
+        }
+      } catch (cause) {
+        console.error("Impossible d’effacer l’ancien cookie de session.", cause);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      requestVersion.current += 1;
+      setUser(null);
+      setError(null);
+      setIsLoading(false);
+    };
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () =>
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, []);
 
   const value = useMemo(
     () => ({ user, isLoading, error, refreshUser, setUser: updateUser, logout }),

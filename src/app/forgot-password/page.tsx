@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getApiRoot } from "../lib/auth";
+import { apiFetch, getApiRoot } from "../lib/auth";
 import StepEmailForm from "../components/StepEmailForm";
 import StepCodeForm from "../components/StepCodeForm";
 import StepPasswordForm from "../components/StepPasswordForm";
@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
     setNotice(null);
 
     try {
-      const response = await fetch(`${getApiRoot()}/auth/forgot-password`, {
+      const response = await apiFetch(`${getApiRoot()}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -105,7 +105,7 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${getApiRoot()}/auth/reset-password`, {
+      const response = await apiFetch(`${getApiRoot()}/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code, newPassword }),

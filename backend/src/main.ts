@@ -17,11 +17,11 @@ async function bootstrap() {
 
   // Permettre les requêtes cross-origin depuis le Frontend Next.js
   app.enableCors({
-    origin: process.env.FRONTEND_URL ,
+    origin: process.env.FRONTEND_URL,
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   await app.listen(process.env.PORT || 5000);
- 
 }
 bootstrap();

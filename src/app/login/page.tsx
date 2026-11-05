@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { getApiRoot, getRoleHome } from "../lib/auth";
+import { getApiRoot, getRoleHome, setAccessToken } from "../lib/auth";
 import { useAuth } from "../providers/AuthProvider";
 
 // Importez votre image depuis le dossier public/ ou assets (ex: public/images/b2b-hero.jpg)
@@ -56,6 +56,10 @@ export default function LoginPage() {
         throw new Error(data.message || "Identifiants incorrects.");
       }
 
+      if (typeof data.accessToken !== "string" || !data.accessToken) {
+        throw new Error("Réponse de connexion invalide.");
+      }
+
       const role = data.user?.role;
       if (!role) {
         throw new Error("Réponse de connexion invalide.");
@@ -65,6 +69,7 @@ export default function LoginPage() {
         throw new Error("Ce type de compte ne peut pas accéder à la plateforme.");
       }
 
+      setAccessToken(data.accessToken);
       setUser(data.user);
       router.replace(getLoginDestination(role));
     } catch (err: unknown) {

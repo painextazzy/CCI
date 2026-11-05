@@ -13,7 +13,7 @@ import {
   Calendar,
   Tag,
 } from "lucide-react";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 import { useAuth } from "../../providers/AuthProvider";
 import {
@@ -51,8 +51,7 @@ export default function DemandesPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${getApiRoot()}/interests/${activeTab}`, {
-          credentials: "include",
+        const response = await apiFetch(`${getApiRoot()}/interests/${activeTab}`, {
           cache: "no-store",
         });
         if (!response.ok) {
@@ -119,9 +118,9 @@ export default function DemandesPage() {
   ) => {
     setError(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/interests/${interestId}/${action}`,
-        { method: "PATCH", credentials: "include" },
+        { method: "PATCH" },
       );
       const updated = (await response.json()) as InterestItem & {
         message?: string;

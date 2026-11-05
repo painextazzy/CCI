@@ -10,7 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import CompanyAvatar from "../../components/CompanyAvatar";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 interface Member {
@@ -56,8 +56,7 @@ export default function AdminUsersPage() {
 
     const loadMembers = async () => {
       try {
-        const response = await fetch(`${getApiRoot()}/users`, {
-          credentials: "include",
+        const response = await apiFetch(`${getApiRoot()}/users`, {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -91,9 +90,9 @@ export default function AdminUsersPage() {
 
     try {
       const action = user.isActive ? "suspend" : "activate";
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/users/${user.id}/${action}`,
-        { method: "PATCH", credentials: "include" },
+        { method: "PATCH" },
       );
 
       if (!response.ok) {

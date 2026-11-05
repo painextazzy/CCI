@@ -13,7 +13,7 @@ import {
   Tag,
   FileText,
 } from "lucide-react";
-import { getApiRoot } from "../../../lib/auth";
+import { apiFetch, getApiRoot } from "../../../lib/auth";
 
 export default function NouvelleAnnoncePage() {
   const router = useRouter();
@@ -64,12 +64,11 @@ export default function NouvelleAnnoncePage() {
     setError(null);
 
     try {
-      const res = await fetch(`${getApiRoot()}/announcements`, {
+      const res = await apiFetch(`${getApiRoot()}/announcements`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
         body: JSON.stringify({
           ...formData,
           deadline: formData.deadline

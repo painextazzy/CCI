@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DatabaseBackup, Download, LoaderCircle, ShieldAlert, Upload } from "lucide-react";
 import { useAuth } from "../../providers/AuthProvider";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 
 type RestoreResult = { restoredRows: Record<string, number> };
 
@@ -51,8 +51,7 @@ export default function AdminBackupPage() {
     setError(null);
     setMessage(null);
     try {
-      const response = await fetch(`${getApiRoot()}/admin/data/backup`, {
-        credentials: "include",
+      const response = await apiFetch(`${getApiRoot()}/admin/data/backup`, {
         cache: "no-store",
       });
       if (!response.ok) {
@@ -103,9 +102,8 @@ export default function AdminBackupPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch(`${getApiRoot()}/admin/data/restore`, {
+      const response = await apiFetch(`${getApiRoot()}/admin/data/restore`, {
         method: "POST",
-        credentials: "include",
         body: formData,
       });
       if (!response.ok) {

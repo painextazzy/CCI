@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { FileText, Search, X } from "lucide-react";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import CompanyAvatar from "../../components/CompanyAvatar";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 
@@ -66,10 +66,9 @@ export default function AdminPartnershipsPage() {
 
     async function loadContracts() {
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${getApiRoot()}/admin/dashboard/contracts`,
           {
-            credentials: "include",
             cache: "no-store",
             signal: controller.signal,
           },

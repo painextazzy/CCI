@@ -11,12 +11,14 @@ import { User } from '../users/entities/user.entity';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { Contract } from './entities/contract.entity';
 import { ContractsPdfService } from './contracts-pdf.service';
+import { CompaniesModule } from '../companies/companies.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Message, Interest, Company, User, Contract]),
     AuthModule,
     CloudinaryModule,
+    CompaniesModule,
   ],
   controllers: [MessagesController],
   providers: [MessagesService, MessagesGateway, ContractsPdfService],

@@ -13,7 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import CompanyAvatar from "../../components/CompanyAvatar";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 
@@ -115,13 +115,11 @@ export default function AdminDashboardPage() {
       requestController = controller;
       try {
         const [statsRes, membersRes] = await Promise.all([
-          fetch(`${getApiRoot()}/admin/dashboard/statistics?period=${period}`, {
-            credentials: "include",
+          apiFetch(`${getApiRoot()}/admin/dashboard/statistics?period=${period}`, {
             cache: "no-store",
             signal: controller.signal,
           }),
-          fetch(`${getApiRoot()}/users`, {
-            credentials: "include",
+          apiFetch(`${getApiRoot()}/users`, {
             cache: "no-store",
             signal: controller.signal,
           }),
@@ -172,10 +170,9 @@ export default function AdminDashboardPage() {
       requestController = controller;
 
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${getApiRoot()}/admin/dashboard/contracts`,
           {
-            credentials: "include",
             cache: "no-store",
             signal: controller.signal,
           },

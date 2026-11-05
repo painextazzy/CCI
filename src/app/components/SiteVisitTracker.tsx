@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { getApiRoot } from "../lib/auth";
+import { apiFetch, getApiRoot } from "../lib/auth";
 
 export default function SiteVisitTracker() {
   const pathname = usePathname();
@@ -15,7 +15,7 @@ export default function SiteVisitTracker() {
 
     async function recordVisit() {
       try {
-        const response = await fetch(`${getApiRoot()}/site-visits`, {
+        const response = await apiFetch(`${getApiRoot()}/site-visits`, {
           method: "POST",
           keepalive: true,
         });

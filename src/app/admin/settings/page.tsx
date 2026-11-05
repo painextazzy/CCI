@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
 
 type ApiError = { message?: string | string[] };
@@ -50,10 +50,9 @@ export default function AdminSettingsPage() {
 
     setPasswordSaving(true);
     try {
-      const response = await fetch(`${getApiRoot()}/auth/change-password`, {
+      const response = await apiFetch(`${getApiRoot()}/auth/change-password`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           currentPassword: password.currentPassword,
           newPassword: password.newPassword,
@@ -97,10 +96,9 @@ export default function AdminSettingsPage() {
 
     setAdminSaving(true);
     try {
-      const response = await fetch(`${getApiRoot()}/users/admins`, {
+      const response = await apiFetch(`${getApiRoot()}/users/admins`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           email: adminAccount.email,
           password: adminAccount.password,

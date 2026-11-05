@@ -17,7 +17,6 @@ import { Interest } from './entities/interest.entity';
       process.env.CLIENT_URL ||
       process.env.FRONTEND_URL ||
       'http://localhost:3000',
-    credentials: true,
   },
 })
 export class InterestsGateway
@@ -33,20 +32,14 @@ export class InterestsGateway
   server: Server;
 
   async handleConnection(client: Socket) {
-    const cookie = client.handshake.headers.cookie
-      ?.split(';')
-      .map((part) => part.trim())
-      .find((part) => part.startsWith('cci_b2b_token='));
-    if (!cookie) {
+    const token = client.handshake.auth?.token;
+    if (typeof token !== 'string' || !token) {
       client.disconnect(true);
       return;
     }
 
     let userId: string;
     try {
-      const token = decodeURIComponent(
-        cookie.slice('cci_b2b_token='.length),
-      );
       const payload = await this.jwtService.verifyAsync<{ sub: string }>(token);
       userId = payload.sub;
     } catch {

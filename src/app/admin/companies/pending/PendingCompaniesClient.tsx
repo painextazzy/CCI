@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import CompanyDetailModal, { CompanyRequest } from "./CompanyDetailModal";
 import CompanyAvatar from "../../../components/CompanyAvatar";
-import { getApiRoot } from "../../../lib/auth";
+import { apiFetch, getApiRoot } from "../../../lib/auth";
 
 export type { CompanyRequest };
 
@@ -99,12 +99,11 @@ export default function PendingCompaniesClient({
     setActionMessage(null);
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/companies/${companyId}/status`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ status: "APPROVED" }),
         },
       );
@@ -148,12 +147,11 @@ export default function PendingCompaniesClient({
     setActionError(null);
     setActionMessage(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/companies/${rejectingCompany.id}/status`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
             status: "REJECTED",
             rejectionReason: rejectionReason.trim(),

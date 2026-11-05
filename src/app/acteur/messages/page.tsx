@@ -27,7 +27,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getAccessToken, getApiRoot } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
 import { useInterestsNotifications } from "../../providers/InterestsNotificationsProvider";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
@@ -401,12 +401,10 @@ export default function MessagesPage() {
       setChatError(null);
       try {
         const [receivedResponse, sentResponse] = await Promise.all([
-          fetch(`${getApiRoot()}/interests/received`, {
-            credentials: "include",
+          apiFetch(`${getApiRoot()}/interests/received`, {
             cache: "no-store",
           }),
-          fetch(`${getApiRoot()}/interests/sent`, {
-            credentials: "include",
+          apiFetch(`${getApiRoot()}/interests/sent`, {
             cache: "no-store",
           }),
         ]);
@@ -491,9 +489,9 @@ export default function MessagesPage() {
 
     async function loadHistory() {
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${getApiRoot()}/messages/${selectedConversationId}`,
-          { credentials: "include", cache: "no-store" },
+          { cache: "no-store" },
         );
         if (!response.ok) {
           throw new Error(
@@ -553,7 +551,7 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!selectedConversationId || !user?.company?.id) return;
     const socket = io(getApiRoot().replace(/\/api$/i, ""), {
-      withCredentials: true,
+      auth: { token: getAccessToken() },
     });
     socketRef.current = socket;
     setIsSocketConnected(false);
@@ -892,12 +890,11 @@ export default function MessagesPage() {
     setIsSavingMessage(true);
     setChatError(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/messages/${editingMessageId}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ content: editedMessageText }),
         },
       );
@@ -962,9 +959,8 @@ export default function MessagesPage() {
     setDeletingMessageId(message.id);
     setChatError(null);
     try {
-      const response = await fetch(`${getApiRoot()}/messages/${message.id}`, {
+      const response = await apiFetch(`${getApiRoot()}/messages/${message.id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!response.ok) {
         throw new Error("Le message n’a pas pu être supprimé.");
@@ -1023,11 +1019,10 @@ export default function MessagesPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/messages/${selectedConversationId}/attachments`,
         {
           method: "POST",
-          credentials: "include",
           body: formData,
         },
       );
@@ -1090,12 +1085,11 @@ export default function MessagesPage() {
       void (async () => {
         setIsSavingContract(true);
         try {
-          const response = await fetch(
+          const response = await apiFetch(
             `${getApiRoot()}/messages/${editingContractMessageId}`,
             {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              credentials: "include",
               body: JSON.stringify({ content }),
             },
           );
@@ -1176,12 +1170,11 @@ export default function MessagesPage() {
     setIsSigningContract(true);
     setChatError(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/messages/${selectedContractMessageId}/accept`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ signerName }),
         },
       );
@@ -1235,9 +1228,8 @@ export default function MessagesPage() {
     }
     setChatError(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${getApiRoot()}/messages/contracts/${contractId}/pdf`,
-        { credentials: "include" },
       );
       if (!response.ok) {
         throw new Error("Le PDF du contrat n’a pas pu être téléchargé.");

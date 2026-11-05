@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getApiRoot, type AuthUser } from "../../lib/auth";
+import { apiFetch, getApiRoot, type AuthUser } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
 
 type ApiError = { message?: string | string[] };
@@ -71,9 +71,8 @@ export default function AccountSettingsPage() {
     try {
       const formData = new FormData();
       formData.append("photo", photo);
-      const response = await fetch(`${getApiRoot()}/auth/profile-photo`, {
+      const response = await apiFetch(`${getApiRoot()}/auth/profile-photo`, {
         method: "POST",
-        credentials: "include",
         body: formData,
       });
       if (!response.ok) {
@@ -115,10 +114,9 @@ export default function AccountSettingsPage() {
     setPasswordSaving(true);
 
     try {
-      const response = await fetch(`${getApiRoot()}/auth/change-password`, {
+      const response = await apiFetch(`${getApiRoot()}/auth/change-password`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           currentPassword: password.currentPassword,
           newPassword: password.newPassword,

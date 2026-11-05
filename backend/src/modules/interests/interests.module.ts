@@ -9,11 +9,13 @@ import { AuthModule } from '../auth/auth.module';
 import { InterestsService } from './interests.service';
 import { InterestsController } from './interests.controller';
 import { InterestsGateway } from './interests.gateway';
+import { CompaniesModule } from '../companies/companies.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Interest, Announcement, Company, Contract, User]),
     AuthModule,
+    CompaniesModule,
   ],
   controllers: [InterestsController],
   providers: [InterestsService, InterestsGateway],

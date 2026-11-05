@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CalendarDays, Eye, MapPin, X } from "lucide-react";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 type Announcement = {
@@ -50,10 +50,9 @@ export default function AdminAnnouncementsPage() {
 
     async function loadAnnouncements() {
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${getApiRoot()}/admin/dashboard/announcements`,
           {
-            credentials: "include",
             cache: "no-store",
             signal: controller.signal,
           },

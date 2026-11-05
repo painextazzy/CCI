@@ -13,7 +13,7 @@ import {
   Phone,
   Search,
 } from "lucide-react";
-import { getApiRoot } from "../../lib/auth";
+import { apiFetch, getApiRoot } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 
@@ -128,8 +128,7 @@ export default function PartenairesPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${getApiRoot()}/messages/contracts`, {
-          credentials: "include",
+        const response = await apiFetch(`${getApiRoot()}/messages/contracts`, {
           cache: "no-store",
         });
         if (!response.ok) {

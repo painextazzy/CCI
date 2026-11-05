@@ -13,7 +13,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
 import { io } from "socket.io-client";
-import { getApiRoot } from "../lib/auth";
+import { apiFetch, getAccessToken, getApiRoot } from "../lib/auth";
 import { useAuth } from "./AuthProvider";
 
 export interface InterestNotification {
@@ -119,14 +119,13 @@ export function InterestsNotificationsProvider({
     if (isLoading || user?.role !== "COMPANY" || !user.company?.id) return;
 
     const socket = io(getApiRoot().replace(/\/api$/i, ""), {
-      withCredentials: true,
+      auth: { token: getAccessToken() },
     });
     socket.on("connect_error", () => {
       setConnectionError("Les notifications en temps réel ne sont pas disponibles.");
     });
     socket.on("connect", () => setConnectionError(null));
-    void fetch(`${getApiRoot()}/messages/unread-count`, {
-      credentials: "include",
+    void apiFetch(`${getApiRoot()}/messages/unread-count`, {
       cache: "no-store",
     })
       .then(async (response) => {
