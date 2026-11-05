@@ -78,6 +78,9 @@ export function InterestsNotificationsProvider({
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const messageToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -92,6 +95,8 @@ export function InterestsNotificationsProvider({
     useState<MessageNotification | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [toast, setToast] = useState<InterestNotification | null>(null);
+  const [statusToast, setStatusToast] =
+    useState<InterestNotification | null>(null);
   const [messageToast, setMessageToast] =
     useState<MessageNotification | null>(null);
 
@@ -154,7 +159,21 @@ export function InterestsNotificationsProvider({
         setUnreadCount((count) => count + 1);
       }
     });
-    socket.on("interestStatusUpdated", setLatestStatusUpdate);
+    socket.on("interestStatusUpdated", (interest: InterestNotification) => {
+      setLatestStatusUpdate(interest);
+      setStatusToast(interest);
+      if (statusToastTimerRef.current) {
+        clearTimeout(statusToastTimerRef.current);
+      }
+      statusToastTimerRef.current = setTimeout(
+        () => setStatusToast(null),
+        7000,
+      );
+
+      if (pathnameRef.current !== "/acteur/demandes") {
+        setUnreadCount((count) => count + 1);
+      }
+    });
     socket.on(
       "newMessageNotification",
       (notification: MessageNotification) => {
@@ -179,6 +198,9 @@ export function InterestsNotificationsProvider({
     return () => {
       socket.disconnect();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (statusToastTimerRef.current) {
+        clearTimeout(statusToastTimerRef.current);
+      }
       if (messageToastTimerRef.current) {
         clearTimeout(messageToastTimerRef.current);
       }
@@ -188,6 +210,13 @@ export function InterestsNotificationsProvider({
   const dismissToast = () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(null);
+  };
+
+  const dismissStatusToast = () => {
+    if (statusToastTimerRef.current) {
+      clearTimeout(statusToastTimerRef.current);
+    }
+    setStatusToast(null);
   };
 
   const dismissMessageToast = () => {
@@ -247,12 +276,76 @@ export function InterestsNotificationsProvider({
           </div>
         </div>
       )}
+      {statusToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed right-5 z-[101] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border bg-white shadow-xl ${
+            toast ? "bottom-[8.5rem]" : "bottom-5"
+          } ${
+            statusToast.status === "ACCEPTED"
+              ? "border-emerald-200"
+              : "border-rose-200"
+          }`}
+        >
+          <div className="flex items-start gap-3 p-4">
+            <span
+              className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
+                statusToast.status === "ACCEPTED"
+                  ? "bg-emerald-500"
+                  : "bg-rose-500"
+              }`}
+            />
+            <Link
+              href="/acteur/demandes"
+              onClick={dismissStatusToast}
+              className="min-w-0 flex-1"
+            >
+              <p className="text-sm font-bold text-slate-900">
+                {statusToast.status === "ACCEPTED"
+                  ? "Invitation acceptée"
+                  : "Invitation refusée"}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                {statusToast.receiverCompany.companyName} a{" "}
+                {statusToast.status === "ACCEPTED" ? "accepté" : "refusé"} votre
+                invitation
+                {statusToast.announcement?.title
+                  ? ` concernant « ${statusToast.announcement.title} »`
+                  : ""}
+                .
+              </p>
+              <span
+                className={`mt-2 inline-block text-xs font-semibold ${
+                  statusToast.status === "ACCEPTED"
+                    ? "text-emerald-700"
+                    : "text-rose-700"
+                }`}
+              >
+                Voir la demande
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={dismissStatusToast}
+              aria-label="Fermer la notification d’invitation"
+              className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {messageToast && (
         <div
           role="status"
           aria-live="polite"
-          className={`fixed right-5 z-[101] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-xl ${
-            toast ? "bottom-[8.5rem]" : "bottom-5"
+          className={`fixed right-5 z-[102] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-xl ${
+            toast && statusToast
+              ? "bottom-[15.5rem]"
+              : toast || statusToast
+                ? "bottom-[8.5rem]"
+                : "bottom-5"
           }`}
         >
           <div className="flex items-start gap-3 p-4">
