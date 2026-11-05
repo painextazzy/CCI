@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { getApiRoot } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 // ─────────────────────────────────────────────────────────
 // Types & constantes
@@ -959,13 +960,7 @@ export default function ActorProfilePage() {
         )}
 
         {isLoading ? (
-          <div
-            data-actor-card
-            className="flex items-center justify-center gap-3 rounded-3xl border border-[#F2F2F2] bg-white py-16 text-sm font-semibold text-slate-500"
-          >
-            <LoaderCircle className="h-5 w-5 animate-spin text-emerald-600" />
-            Chargement de vos annonces...
-          </div>
+          <LoadingSkeleton variant="cards" count={4} columns={2} />
         ) : announcements.length === 0 ? (
           <div
             data-actor-card

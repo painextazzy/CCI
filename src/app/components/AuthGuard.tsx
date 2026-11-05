@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../providers/AuthProvider";
 import { getRoleHome } from "../lib/auth";
+import LoadingSkeleton from "./LoadingSkeleton";
 
 type AuthGuardProps = {
   allowedRoles: Array<"ADMIN" | "CCI_STAFF" | "COMPANY">;
@@ -42,8 +43,8 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
   }
   if (isLoading || !user || !allowedRoles.includes(user.role)) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
-        Vérification de votre session...
+      <div className="mx-auto min-h-screen w-full max-w-7xl bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+        <LoadingSkeleton variant="page" count={3} />
       </div>
     );
   }

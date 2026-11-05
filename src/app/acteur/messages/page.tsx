@@ -30,6 +30,7 @@ import {
 import { getApiRoot } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
 import { useInterestsNotifications } from "../../providers/InterestsNotificationsProvider";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 import ContractProposalModal from "./ContractProposalModal";
 import ContractReviewModal from "./ContractReviewModal";
 import type { ContractDetails } from "./ContractReviewModal";
@@ -1369,8 +1370,8 @@ export default function MessagesPage() {
 
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="p-8 text-center text-xs text-slate-400">
-                Chargement des conversations...
+              <div className="p-3">
+                <LoadingSkeleton variant="rows" count={5} />
               </div>
             ) : filteredConversations.length > 0 ? (
               filteredConversations.map((conv) => {

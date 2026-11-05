@@ -9,13 +9,13 @@ import {
   ChevronUp,
   Clock3,
   Globe,
-  LoaderCircle,
   MapPin,
   Phone,
   Search,
 } from "lucide-react";
 import { getApiRoot } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 interface ContractCompany {
   id: string;
@@ -248,10 +248,7 @@ export default function PartenairesPage() {
       )}
 
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-xs font-medium text-slate-500">
-          <LoaderCircle className="h-4 w-4 animate-spin text-emerald-600" />
-          Chargement des partenaires...
-        </div>
+        <LoadingSkeleton variant="cards" count={6} />
       ) : partners.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#F2F2F2] bg-white px-6 py-12 text-center">
           <p className="text-xs font-semibold text-slate-500">

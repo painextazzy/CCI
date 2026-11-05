@@ -14,6 +14,7 @@ import {
   Tag,
 } from "lucide-react";
 import { getApiRoot } from "../../lib/auth";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 import { useAuth } from "../../providers/AuthProvider";
 import {
   useInterestsNotifications,
@@ -271,9 +272,7 @@ export default function DemandesPage() {
 
       {/* ─── Grille des cartes ─── */}
       {isLoading ? (
-        <div data-actor-card className="rounded-xl border-2 border-[#F2F2F2] bg-white py-16 text-center text-sm font-semibold text-slate-500">
-          Chargement de vos demandes...
-        </div>
+        <LoadingSkeleton variant="cards" count={6} />
       ) : filteredInterests.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredInterests.map((item) => {

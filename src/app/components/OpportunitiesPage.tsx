@@ -100,7 +100,6 @@ function formatWebsite(url?: string): string {
 const DESCRIPTION_MAX_LENGTH = 180;
 const INITIAL_VISIBLE_COUNT = 6;
 const LOAD_MORE_BATCH = 6;
-const SKELETON_DELAY = 700;
 
 export default function OpportunitiesPage({
   isPublic = false,
@@ -124,7 +123,6 @@ export default function OpportunitiesPage({
   } | null>(null);
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -348,17 +346,11 @@ export default function OpportunitiesPage({
   const hasMore = visibleCount < filteredOpportunities.length;
 
   const loadMore = useCallback(() => {
-    if (loadingMore || !hasMore) return;
-
-    setLoadingMore(true);
-
-    setTimeout(() => {
-      setVisibleCount((prev) =>
-        Math.min(prev + LOAD_MORE_BATCH, filteredOpportunities.length),
-      );
-      setLoadingMore(false);
-    }, SKELETON_DELAY);
-  }, [loadingMore, hasMore, filteredOpportunities.length]);
+    if (!hasMore) return;
+    setVisibleCount((prev) =>
+      Math.min(prev + LOAD_MORE_BATCH, filteredOpportunities.length),
+    );
+  }, [hasMore, filteredOpportunities.length]);
 
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE_COUNT);
@@ -370,7 +362,7 @@ export default function OpportunitiesPage({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        if (entries[0].isIntersecting && hasMore) {
           loadMore();
         }
       },
@@ -380,7 +372,7 @@ export default function OpportunitiesPage({
     observer.observe(el);
 
     return () => observer.disconnect();
-  }, [loadMore, hasMore, loadingMore]);
+  }, [loadMore, hasMore]);
 
   return (
     <div className="min-h-screen  py-4">
@@ -779,15 +771,7 @@ export default function OpportunitiesPage({
               })}
             </div>
 
-            {loadingMore && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
-                {Array.from({ length: LOAD_MORE_BATCH }).map((_, i) => (
-                  <SkeletonCard key={`skeleton-${i}`} />
-                ))}
-              </div>
-            )}
-
-            {hasMore && !loadingMore && (
+            {hasMore && (
               <div
                 ref={loadMoreRef}
                 className="h-20 flex items-center justify-center"

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import CompanyAvatar from "../../components/CompanyAvatar";
 import { getApiRoot } from "../../lib/auth";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 interface Member {
   id: string;
@@ -226,11 +227,7 @@ export default function AdminUsersPage() {
         </div>
       )}
       {isLoading ? (
-        <div className="bg-white rounded-3xl border border-slate-100 p-12 text-center">
-          <p className="text-slate-500 text-sm font-medium">
-            Chargement des membres approuvés...
-          </p>
-        </div>
+        <LoadingSkeleton variant="cards" count={6} />
       ) : loadError ? (
         <div className="bg-white rounded-3xl border border-rose-100 p-12 text-center">
           <p className="text-rose-600 text-sm font-medium">{loadError}</p>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays, Eye, LoaderCircle, MapPin, X } from "lucide-react";
+import { CalendarDays, Eye, MapPin, X } from "lucide-react";
 import { getApiRoot } from "../../lib/auth";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 type Announcement = {
   id: string;
@@ -109,12 +110,7 @@ export default function AdminAnnouncementsPage() {
       )}
 
       {isLoading ? (
-        <div className="flex min-h-48 items-center justify-center rounded-3xl bg-white">
-          <LoaderCircle
-            className="h-8 w-8 animate-spin text-emerald-600"
-            aria-label="Chargement des annonces"
-          />
-        </div>
+        <LoadingSkeleton variant="cards" count={4} columns={2} />
       ) : !error && announcements.length === 0 ? (
         <div className="rounded-3xl bg-white p-10 text-center text-sm text-slate-500">
           Aucune annonce n’a été publiée.

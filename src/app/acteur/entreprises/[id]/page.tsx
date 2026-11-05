@@ -17,6 +17,7 @@ import {
   HiOutlineClock,
 } from "react-icons/hi2";
 import { getApiRoot } from "../../../lib/auth";
+import LoadingSkeleton from "../../../components/LoadingSkeleton";
 
 // ─────────────────────────────────────────────────────────
 // Types
@@ -199,11 +200,8 @@ export default function CompanyDetailPage() {
   // ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-        <div className="w-8 h-8 border-[3px] border-emerald-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-medium text-slate-500">
-          Chargement du profil...
-        </p>
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <LoadingSkeleton variant="detail" />
       </div>
     );
   }

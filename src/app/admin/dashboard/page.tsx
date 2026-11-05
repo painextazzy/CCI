@@ -6,7 +6,6 @@ import {
   Handshake,
   FileClock,
   Globe2,
-  LoaderCircle,
   Users,
   ArrowUpRight,
   ArrowDownRight,
@@ -16,6 +15,7 @@ import {
 import Link from "next/link";
 import { getApiRoot } from "../../lib/auth";
 import CompanyAvatar from "../../components/CompanyAvatar";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 // ─── Types ───
 interface AdminDashboardStatistics {
@@ -100,7 +100,7 @@ export default function AdminDashboardPage() {
 
   // Mise à jour de l'heure
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
+    const timer = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -154,7 +154,7 @@ export default function AdminDashboardPage() {
     void load();
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void load();
-    }, 10_000);
+    }, 60_000);
     return () => {
       isMounted = false;
       window.clearInterval(interval);
@@ -210,7 +210,7 @@ export default function AdminDashboardPage() {
     void loadContracts();
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void loadContracts();
-    }, 10_000);
+    }, 60_000);
 
     return () => {
       isMounted = false;
@@ -265,8 +265,8 @@ export default function AdminDashboardPage() {
 
   if (isLoading && !statistics) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-[#f4f7fe]">
-        <LoaderCircle className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-[#f4f7fe] p-4 sm:p-6 lg:p-8">
+        <LoadingSkeleton variant="dashboard" />
       </div>
     );
   }
@@ -519,9 +519,8 @@ export default function AdminDashboardPage() {
                 {contractsError}
               </p>
             ) : isLoadingContracts ? (
-              <div className="flex items-center justify-center gap-2 py-8 text-xs font-medium text-slate-500">
-                <LoaderCircle className="h-4 w-4 animate-spin text-emerald-600" />
-                Chargement des contrats...
+              <div className="py-2">
+                <LoadingSkeleton variant="rows" count={3} />
               </div>
             ) : ongoingContracts.length === 0 ? (
               <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">

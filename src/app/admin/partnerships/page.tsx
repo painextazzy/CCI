@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FileText, LoaderCircle, Search, X } from "lucide-react";
+import { FileText, Search, X } from "lucide-react";
 import { getApiRoot } from "../../lib/auth";
 import CompanyAvatar from "../../components/CompanyAvatar";
+import LoadingSkeleton from "../../components/LoadingSkeleton";
 
 interface PartnershipContract {
   id: string;
@@ -137,11 +138,8 @@ export default function AdminPartnershipsPage() {
         className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
       >
         {isLoading ? (
-          <div className="flex min-h-52 items-center justify-center">
-            <LoaderCircle
-              className="h-6 w-6 animate-spin text-emerald-600"
-              aria-label="Chargement des contrats"
-            />
+          <div className="p-4 sm:p-6">
+            <LoadingSkeleton variant="table" count={5} />
           </div>
         ) : !error && filteredContracts.length === 0 ? (
           <div className="px-6 py-14 text-center">
