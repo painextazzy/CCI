@@ -107,14 +107,16 @@ export default function ActorTopbar() {
             href="/acteur/opportunites"
             className="flex items-center gap-3 group shrink-0"
           >
-            <Image
-              src="/logo.png"
-              alt="CCI B2B Connect"
-              width={48}
-              height={48}
-              className="h-14 w-14 object-contain transition-transform group-hover:scale-105 sm:h-12 sm:w-12"
-              priority
-            />
+            <div className="relative h-14 w-14 shrink-0 transition-transform group-hover:scale-105 sm:h-12 sm:w-12">
+              <Image
+                src="/logo.png"
+                alt="CCI B2B Connect"
+                fill
+                sizes="(max-width: 640px) 56px, 48px"
+                className="object-contain"
+                priority
+              />
+            </div>
             <div className="hidden items-baseline gap-1.5 sm:flex">
               <span className="text-xl font-extrabold tracking-tight text-[#10b981]">
                 B2B Connect

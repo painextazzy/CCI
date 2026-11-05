@@ -23,7 +23,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${jakarta.variable} scroll-smooth`}>
+    <html
+      lang="fr"
+      className={`${jakarta.variable} scroll-smooth`}
+      data-scroll-behavior="smooth"
+    >
       <body className="relative antialiased selection:bg-teal-500 selection:text-white">
         <AuthProvider>
           <InterestsNotificationsProvider>

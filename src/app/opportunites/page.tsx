@@ -8,14 +8,16 @@ export default function PublicOpportunitiesPage() {
       <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="CCI B2B Connect"
-              width={44}
-              height={44}
-              className="object-contain"
-              priority
-            />
+            <div className="relative h-11 w-11 shrink-0">
+              <Image
+                src="/logo.png"
+                alt="CCI B2B Connect"
+                fill
+                sizes="44px"
+                className="object-contain"
+                priority
+              />
+            </div>
             <span className="font-extrabold tracking-tight text-emerald-700">
               B2B Connect
             </span>

@@ -45,9 +45,9 @@ export default function Partners() {
               <Image
                 src={partner.src}
                 alt={partner.name}
-                width={200}
-                height={96}
-                className="object-contain max-h-24 w-auto h-auto"
+                fill
+                sizes="(max-width: 640px) 40vw, 200px"
+                className="object-contain"
                 title={partner.name}
               />
             </Reveal>

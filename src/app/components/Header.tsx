@@ -32,6 +32,7 @@ export default function Header() {
               src="/logo.png"
               alt="Logo B2B Connect"
               fill
+              sizes="(max-width: 640px) 36px, 40px"
               className="object-contain"
               priority
             />

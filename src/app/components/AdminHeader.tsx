@@ -191,6 +191,7 @@ export default function AdminHeader() {
               src="/logo.png"
               alt="Logo CCI B2B Connect"
               fill
+              sizes="(max-width: 640px) 56px, 48px"
               className="object-contain"
               priority
             />
