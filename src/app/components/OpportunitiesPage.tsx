@@ -48,6 +48,7 @@ export interface Opportunity {
   deadline?: string;
   createdAt: string;
   timeAgo?: string;
+  isContracted?: boolean;
   company: CompanyDetails;
 }
 
@@ -103,8 +104,10 @@ const SKELETON_DELAY = 700;
 
 export default function OpportunitiesPage({
   isPublic = false,
+  hideContracted = false,
 }: {
   isPublic?: boolean;
+  hideContracted?: boolean;
 }) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -240,6 +243,7 @@ export default function OpportunitiesPage({
           description: item.description,
           annonceType: item.type as AnnonceType,
           status: item.status || "OPEN",
+          isContracted: item.isContracted === true,
           specificLocation: item.specificLocation,
           deadline: item.deadline,
           createdAt: item.createdAt,
@@ -267,7 +271,11 @@ export default function OpportunitiesPage({
           },
         }));
 
-        setOpportunities(formattedData);
+        setOpportunities(
+          hideContracted
+            ? formattedData.filter((opportunity) => !opportunity.isContracted)
+            : formattedData,
+        );
       } catch (err: any) {
         console.error("Erreur de chargement des annonces :", err);
         setError(err.message || "Erreur de connexion au serveur.");
@@ -277,7 +285,7 @@ export default function OpportunitiesPage({
     }
 
     fetchAnnouncements();
-  }, []);
+  }, [hideContracted]);
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 60_000);
@@ -605,12 +613,18 @@ export default function OpportunitiesPage({
                       <div className="shrink-0 flex flex-col items-end gap-1">
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${
-                            item.status === "OPEN"
-                              ? "bg-emerald-50 text-emerald-700 border-[#6FCF97]"
-                              : "bg-amber-50 text-amber-700 border-[#F2F2F2]"
+                            item.isContracted
+                              ? "bg-slate-100 text-slate-700 border-slate-200"
+                              : item.status === "OPEN"
+                                ? "bg-emerald-50 text-emerald-700 border-[#6FCF97]"
+                                : "bg-amber-50 text-amber-700 border-[#F2F2F2]"
                           }`}
                         >
-                          {item.status === "OPEN" ? "Ouvert" : "En cours"}
+                          {item.isContracted
+                            ? "Sous contrat"
+                            : item.status === "OPEN"
+                              ? "Ouvert"
+                              : "En cours"}
                         </span>
                         <span
                           className="flex items-center gap-1 text-[10px] text-slate-300 font-medium"
@@ -705,7 +719,12 @@ export default function OpportunitiesPage({
 
                     {/* Pied */}
                     <div className="pt-3 border-t border-[#F2F2F2] flex items-center justify-end gap-2 mt-auto">
-                      {isPublic && !user ? (
+                      {item.isContracted ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-600">
+                          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                          Contrat signé — demandes fermées
+                        </span>
+                      ) : isPublic && !user ? (
                         <Link
                           href={`/login?next=${encodeURIComponent(
                             "/acteur/opportunites",

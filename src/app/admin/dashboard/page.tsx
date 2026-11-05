@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Eye,
+  Handshake,
   FileClock,
   Globe2,
   LoaderCircle,
@@ -12,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 import { getApiRoot } from "../../lib/auth";
 import CompanyAvatar from "../../components/CompanyAvatar";
 
@@ -21,8 +23,24 @@ interface AdminDashboardStatistics {
   siteVisits: number;
   pendingRequests: number;
   contractsInProgress: number;
-  announcements: { active: number; closed: number; total: number };
+  announcements: {
+    active: number;
+    inProgress: number;
+    closed: number;
+    total: number;
+  };
   economicEvolution: { month: string; amount: string }[];
+}
+
+interface AdminContract {
+  id: string;
+  reference: string;
+  senderCompanyName: string;
+  receiverCompanyName: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  status: "UPCOMING" | "IN_PROGRESS" | "COMPLETED";
 }
 
 interface MemberSummary {
@@ -56,11 +74,25 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
   timeZone: "UTC",
 });
 
+function formatContractDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  const [, year, month, day] = match;
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(Number(year), Number(month) - 1, Number(day)));
+}
+
 export default function AdminDashboardPage() {
   const [statistics, setStatistics] = useState<AdminDashboardStatistics | null>(
     null,
   );
   const [recentMembers, setRecentMembers] = useState<MemberSummary[]>([]);
+  const [ongoingContracts, setOngoingContracts] = useState<AdminContract[]>([]);
+  const [isLoadingContracts, setIsLoadingContracts] = useState(true);
+  const [contractsError, setContractsError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<DashboardPeriod>("month");
@@ -129,6 +161,63 @@ export default function AdminDashboardPage() {
       requestController?.abort();
     };
   }, [period]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let requestController: AbortController | null = null;
+
+    async function loadContracts() {
+      requestController?.abort();
+      const controller = new AbortController();
+      requestController = controller;
+
+      try {
+        const response = await fetch(
+          `${getApiRoot()}/admin/dashboard/contracts`,
+          {
+            credentials: "include",
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
+        if (!response.ok) {
+          throw new Error("Impossible de charger les contrats en cours.");
+        }
+
+        const data: AdminContract[] = await response.json();
+        if (isMounted) {
+          setOngoingContracts(
+            data.filter((contract) => contract.status === "IN_PROGRESS"),
+          );
+          setContractsError(null);
+        }
+      } catch (cause) {
+        if (controller.signal.aborted) return;
+        if (isMounted) {
+          setContractsError(
+            cause instanceof Error
+              ? cause.message
+              : "Impossible de charger les contrats en cours.",
+          );
+        }
+      } finally {
+        if (isMounted && !controller.signal.aborted) {
+          setIsLoadingContracts(false);
+        }
+      }
+    }
+
+    void loadContracts();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadContracts();
+    }, 10_000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+      requestController?.abort();
+    };
+  }, []);
 
   const economicData = useMemo(
     () =>
@@ -397,6 +486,81 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
+          <section
+            className="rounded-[24px] bg-white p-5 shadow-sm"
+            aria-labelledby="ongoing-contracts-title"
+            data-aos="fade-up"
+            data-aos-delay="450"
+          >
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2
+                  id="ongoing-contracts-title"
+                  className="text-base font-bold text-slate-900"
+                >
+                  Contrats en cours
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  {ongoingContracts.length} contrat
+                  {ongoingContracts.length > 1 ? "s" : ""} actif
+                  {ongoingContracts.length > 1 ? "s" : ""}
+                </p>
+              </div>
+              <Link
+                href="/admin/partnerships"
+                className="text-xs font-bold text-emerald-700 transition hover:text-emerald-900"
+              >
+                Voir tous les contrats
+              </Link>
+            </div>
+
+            {contractsError ? (
+              <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
+                {contractsError}
+              </p>
+            ) : isLoadingContracts ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-xs font-medium text-slate-500">
+                <LoaderCircle className="h-4 w-4 animate-spin text-emerald-600" />
+                Chargement des contrats...
+              </div>
+            ) : ongoingContracts.length === 0 ? (
+              <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-500">
+                Aucun contrat en cours actuellement.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {ongoingContracts.slice(0, 5).map((contract) => (
+                  <li
+                    key={contract.id}
+                    className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                        <Handshake className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-900">
+                          {contract.title}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-slate-600">
+                          {contract.senderCompanyName} · {contract.receiverCompanyName}
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium text-slate-400">
+                          {contract.reference} · du{" "}
+                          {formatContractDate(contract.startDate)} au{" "}
+                          {formatContractDate(contract.endDate)}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="inline-flex w-fit shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                      En cours
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           {/* ─── Liste des membres avec Avatar Photo ─── */}
           <div
             className="rounded-[24px] bg-white p-5 shadow-sm"
@@ -511,8 +675,10 @@ export default function AdminDashboardPage() {
                 <DonutRing
                   total={statistics.announcements.total}
                   active={statistics.announcements.active}
+                  inProgress={statistics.announcements.inProgress}
                   closed={statistics.announcements.closed}
                   colorActive="#ffffff"
+                  colorInProgress="#a7f3d0"
                   colorClosed="#c4b5fd"
                   trackColor="rgba(255,255,255,0.2)"
                 />
@@ -537,8 +703,17 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2 text-white/90">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#c4b5fd]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#a7f3d0]" />
                     En cours
+                  </span>
+                  <span className="font-bold text-white">
+                    {numberFormatter.format(statistics.announcements.inProgress)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-2 text-white/90">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#c4b5fd]" />
+                    Clôturées
                   </span>
                   <span className="font-bold text-white">
                     {numberFormatter.format(statistics.announcements.closed)}
@@ -796,21 +971,26 @@ function EconomicCurveChart({
 function DonutRing({
   total,
   active,
+  inProgress = 0,
   closed,
   colorActive = "#4b6bfb",
+  colorInProgress = "#34d399",
   colorClosed = "#ef4444",
   trackColor = "#f1f5f9",
 }: {
   total: number;
   active: number;
+  inProgress?: number;
   closed: number;
   colorActive?: string;
+  colorInProgress?: string;
   colorClosed?: string;
   trackColor?: string;
 }) {
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
   const activePercent = total > 0 ? (active / total) * 100 : 0;
+  const inProgressPercent = total > 0 ? (inProgress / total) * 100 : 0;
   const closedPercent = total > 0 ? (closed / total) * 100 : 0;
 
   return (
@@ -838,6 +1018,22 @@ function DonutRing({
           strokeLinecap="round"
         />
       )}
+      {inProgressPercent > 0 && (
+        <circle
+          cx="80"
+          cy="80"
+          r={radius}
+          fill="none"
+          stroke={colorInProgress}
+          strokeWidth="12"
+          strokeDasharray={circumference}
+          strokeDashoffset={
+            circumference - (inProgressPercent / 100) * circumference
+          }
+          strokeLinecap="round"
+          transform={`rotate(${(activePercent / 100) * 360} 80 80)`}
+        />
+      )}
       {closedPercent > 0 && (
         <circle
           cx="80"
@@ -851,7 +1047,7 @@ function DonutRing({
             circumference - (closedPercent / 100) * circumference
           }
           strokeLinecap="round"
-          transform={`rotate(${(activePercent / 100) * 360} 80 80)`}
+          transform={`rotate(${((active + inProgress) / total) * 360 || 0} 80 80)`}
         />
       )}
     </svg>
