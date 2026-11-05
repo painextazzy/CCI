@@ -1,10 +1,12 @@
 import PendingCompaniesClient from "./PendingCompaniesClient";
+import type { CompanyRequest } from "./PendingCompaniesClient";
+import { getApiRoot } from "../../../lib/auth";
 
 export default async function PendingCompaniesPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ;
+  let companies: CompanyRequest[] = [];
 
   try {
-    const res = await fetch(`${apiUrl}/companies`, {
+    const res = await fetch(`${getApiRoot()}/companies`, {
       cache: "no-store",
     });
 
@@ -12,11 +14,10 @@ export default async function PendingCompaniesPage() {
       throw new Error(`Erreur HTTP (${res.status}): Impossible de récupérer les entreprises`);
     }
 
-    const companies = await res.json();
-
-    return <PendingCompaniesClient initialCompanies={companies} />;
+    companies = await res.json();
   } catch (error) {
     console.error("Erreur de connexion au backend :", error);
-    return <PendingCompaniesClient initialCompanies={[]} />;
   }
+
+  return <PendingCompaniesClient initialCompanies={companies} />;
 }

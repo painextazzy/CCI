@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Search, Check, X, Eye, LoaderCircle, Building2 } from "lucide-react";
 import CompanyDetailModal, { CompanyRequest } from "./CompanyDetailModal";
 import CompanyAvatar from "../../../components/CompanyAvatar";
+import { getApiRoot } from "../../../lib/auth";
 
 export type { CompanyRequest };
 
@@ -87,10 +88,11 @@ export default function PendingCompaniesClient({
     setProcessingAction("approve");
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/companies/${id}/status`,
+        `${getApiRoot()}/companies/${id}/status`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ status: "APPROVED" }),
         },
       );
@@ -117,10 +119,11 @@ export default function PendingCompaniesClient({
     setProcessingAction("reject");
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/companies/${rejectingCompany.id}/status`,
+        `${getApiRoot()}/companies/${rejectingCompany.id}/status`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             status: "REJECTED",
             rejectionReason: rejectionReason.trim(),

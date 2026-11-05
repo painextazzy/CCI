@@ -27,9 +27,26 @@ export function getRoleHome(role: AuthUser["role"]) {
 
 export function getApiRoot() {
   const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
+  const productionApiUrl = "https://cci-lsy3.onrender.com";
+
   if (!configuredApiUrl) {
+    if (process.env.NODE_ENV === "production") {
+      return `${productionApiUrl}/api`;
+    }
     throw new Error("La variable NEXT_PUBLIC_API_URL n'est pas configurée.");
   }
+
+  if (process.env.NODE_ENV === "production") {
+    const configuredHost = new URL(configuredApiUrl).hostname;
+    if (
+      configuredHost === "localhost" ||
+      configuredHost === "127.0.0.1" ||
+      configuredHost === "::1"
+    ) {
+      return `${productionApiUrl}/api`;
+    }
+  }
+
   return /\/api$/i.test(configuredApiUrl)
     ? configuredApiUrl
     : `${configuredApiUrl}/api`;
