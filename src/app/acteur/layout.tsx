@@ -10,7 +10,7 @@ export default function ActorLayout({
     <AuthGuard allowedRoles={["COMPANY"]}>
       <div className="actor-theme min-h-screen">
         <ActorTopbar />
-        <main className="min-h-screen bg-[#f5f5f58c] px-3 sm:px-6 lg:px-16 pt-24 pb-16">
+        <main className="min-h-screen bg-[#f5f5f58c] px-3 pt-24 pb-24 sm:px-6 lg:px-16 lg:pb-16">
           <div className="max-w-350 mx-auto">{children}</div>
         </main>
       </div>

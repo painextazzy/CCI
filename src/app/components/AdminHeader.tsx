@@ -7,7 +7,16 @@ import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../providers/AuthProvider";
 import { getApiRoot } from "../lib/auth";
-import { Bell, X } from "lucide-react";
+import {
+  Bell,
+  ClipboardList,
+  DatabaseBackup,
+  Handshake,
+  LayoutDashboard,
+  Megaphone,
+  UsersRound,
+  X,
+} from "lucide-react";
 
 interface AdminNotification {
   id: string;
@@ -52,10 +61,14 @@ export default function AdminHeader() {
   };
 
   const navLinks = [
-    { label: "Vue d'ensemble", href: "/admin/dashboard" },
-    { label: "Demandes", href: "/admin/companies/pending" },
-    { label: "Membres", href: "/admin/users" },
-    { label: "Partenariats", href: "/admin/partnerships" },
+    { label: "Vue d'ensemble", shortLabel: "Accueil", href: "/admin/dashboard", icon: LayoutDashboard },
+    { label: "Demandes", shortLabel: "Demandes", href: "/admin/companies/pending", icon: ClipboardList },
+    { label: "Membres", shortLabel: "Membres", href: "/admin/users", icon: UsersRound },
+    { label: "Annonces", shortLabel: "Annonces", href: "/admin/announcements", icon: Megaphone },
+    { label: "Partenariats", shortLabel: "Parten.", href: "/admin/partnerships", icon: Handshake },
+    ...(user?.role === "ADMIN"
+      ? [{ label: "Sauvegarde", shortLabel: "Backup", href: "/admin/backup", icon: DatabaseBackup }]
+      : []),
   ];
 
   useEffect(() => {
@@ -173,7 +186,7 @@ export default function AdminHeader() {
           href="/admin/dashboard"
           className="flex items-center gap-2.5 sm:gap-3 group shrink-0"
         >
-          <div className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
+          <div className="relative w-14 h-14 sm:w-12 sm:h-12 flex items-center justify-center group-hover:scale-105 transition-transform">
             <Image
               src="/logo.png"
               alt="Logo CCI B2B Connect"
@@ -184,7 +197,7 @@ export default function AdminHeader() {
           </div>
 
           <div className="flex items-baseline gap-1">
-            <span className="text-base sm:text-lg font-bold tracking-tight text-emerald-600">
+            <span className="text-lg sm:text-xl font-bold tracking-tight text-emerald-600">
               B2B Connect
             </span>
           </div>
@@ -358,6 +371,33 @@ export default function AdminHeader() {
           </div>
         </div>
       </div>
+      <nav
+        aria-label="Navigation admin mobile"
+        className="fixed inset-x-0 bottom-0 z-[60] flex border-t border-slate-200 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-4px_18px_-8px_rgba(15,23,42,0.2)] backdrop-blur lg:hidden"
+      >
+        {navLinks.map((link) => {
+          const active =
+            pathname === link.href || pathname.startsWith(`${link.href}/`);
+          const Icon = link.icon;
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-label={link.label}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[9px] font-semibold transition ${
+                active ? "text-emerald-700" : "text-slate-500"
+              }`}
+            >
+              <Icon
+                className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`}
+                aria-hidden="true"
+              />
+              <span className="truncate">{link.shortLabel}</span>
+            </Link>
+          );
+        })}
+      </nav>
       {toast && (
         <div
           role="status"

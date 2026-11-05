@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Step1, Step2, Step3, Step4, Step5, Step6 } from "./RegisterSteps";
+import {
+  isValidPhone,
+  Step1,
+  Step2,
+  Step3,
+  Step4,
+  Step5,
+  Step6,
+} from "./RegisterSteps";
 import { getRoleHome } from "../lib/auth";
 import { useAuth } from "../providers/AuthProvider";
 
@@ -75,8 +83,9 @@ export default function RegisterPage() {
     if (name === "nif" || name === "stat") {
       cleanValue = value.replace(/\D/g, "").slice(0, 10);
     } else if (name === "phone") {
-      const digits = value.replace(/\D/g, "").slice(0, 12);
-      cleanValue = digits ? `+${digits}` : "";
+      const hasPlus = value.startsWith("+");
+      const digits = value.replace(/\D/g, "").slice(0, 13);
+      cleanValue = `${hasPlus ? "+" : ""}${digits}`;
     } else if (name === "companyName" || name === "managerName") {
       cleanValue = value.replace(/[^\p{L}\s]/gu, "").replace(/\s+/g, " ");
     }
@@ -125,9 +134,9 @@ export default function RegisterPage() {
       setError("Le nom du responsable doit contenir uniquement des lettres et des espaces.");
       return;
     }
-    if (!/^\+\d{12}$/.test(formData.phone)) {
+    if (!isValidPhone(formData.phone)) {
       setCurrentStep(2);
-      setError("Le numéro doit commencer par + et contenir exactement 12 chiffres.");
+      setError("Veuillez saisir un numéro valide (8 à 13 chiffres, + facultatif).");
       return;
     }
     if (!/^\S+@\S+\.\S+$/.test(formData.email.trim())) {

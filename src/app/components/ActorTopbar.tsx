@@ -12,8 +12,6 @@ import {
   HiOutlineUser,
   HiOutlineCog6Tooth,
   HiOutlineChevronDown,
-  HiOutlineBars3,
-  HiOutlineXMark,
   HiOutlineBriefcase,
   HiOutlinePlusCircle,
   HiBriefcase,
@@ -33,17 +31,13 @@ export default function ActorTopbar() {
   const { unreadCount, unreadMessageCount, clearUnread } =
     useInterestsNotifications();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) =>
+    pathname === path || pathname.startsWith(`${path}/`);
   const displayName = user?.company?.companyName || user?.email || "Mon compte";
   const initials = displayName.slice(0, 2).toUpperCase();
-
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [pathname]);
 
   const handleLogout = async () => {
     setLogoutError(null);
@@ -118,7 +112,7 @@ export default function ActorTopbar() {
               alt="CCI B2B Connect"
               width={48}
               height={48}
-              className="w-12 h-12 object-contain group-hover:scale-105 transition-transform"
+              className="h-14 w-14 object-contain transition-transform group-hover:scale-105 sm:h-12 sm:w-12"
               priority
             />
             <div className="hidden items-baseline gap-1.5 sm:flex">
@@ -127,25 +121,6 @@ export default function ActorTopbar() {
               </span>
             </div>
           </Link>
-          <button
-            type="button"
-            onClick={() => setIsMenuOpen((open) => !open)}
-            aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
-            aria-expanded={isMenuOpen}
-            aria-controls="actor-mobile-navigation"
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 lg:hidden"
-          >
-            {isMenuOpen ? (
-              <HiOutlineXMark className="h-6 w-6" />
-            ) : (
-              <HiOutlineBars3 className="h-6 w-6" />
-            )}
-            {unreadMessageCount > 0 && !isActive("/acteur/messages") && (
-              <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-rose-500 px-1 text-center text-[9px] font-bold leading-5 text-white">
-                {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-              </span>
-            )}
-          </button>
         </div>
 
         {/* Zone centrale : Navlinks avec effet d'ombre */}
@@ -204,52 +179,6 @@ export default function ActorTopbar() {
             );
           })}
         </nav>
-
-        {isMenuOpen && (
-          <nav
-            id="actor-mobile-navigation"
-            aria-label="Navigation principale"
-            className="absolute left-3 right-3 top-[calc(100%+0.5rem)] z-50 rounded-2xl bg-white p-2 shadow-2xl shadow-slate-300/60 sm:left-6 sm:right-auto sm:w-72 lg:hidden"
-          >
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-              const Icon = active ? item.iconSolid : item.iconOutline;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => {
-                    if (item.href === "/acteur/demandes") clearUnread();
-                    setIsMenuOpen(false);
-                  }}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
-                    active
-                      ? "bg-emerald-50 text-emerald-700 shadow-xs"
-                      : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="relative">
-                    <Icon className="h-5 w-5" />
-                    {item.href === "/acteur/demandes" && unreadCount > 0 && (
-                      <span className="absolute -right-2 -top-2 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-bold text-white">
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    )}
-                    {item.href === "/acteur/messages" &&
-                      unreadMessageCount > 0 &&
-                      !active && (
-                        <span className="absolute -right-2 -top-2 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[9px] font-bold text-white">
-                          {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                        </span>
-                      )}
-                  </span>
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
 
         {/* Zone droite : Profile & Notifications */}
         <div className="flex items-center gap-2 shrink-0">
@@ -330,6 +259,45 @@ export default function ActorTopbar() {
           </div>
         </div>
       </div>
+      <nav
+        aria-label="Navigation acteur mobile"
+        className="fixed inset-x-0 bottom-0 z-[60] flex border-t border-slate-200 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-4px_18px_-8px_rgba(15,23,42,0.2)] backdrop-blur lg:hidden"
+      >
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          const Icon = active ? item.iconSolid : item.iconOutline;
+          const unread =
+            item.href === "/acteur/demandes"
+              ? unreadCount
+              : item.href === "/acteur/messages"
+                ? unreadMessageCount
+                : 0;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => {
+                if (item.href === "/acteur/demandes") clearUnread();
+              }}
+              aria-current={active ? "page" : undefined}
+              aria-label={unread > 0 ? `${item.label}, ${unread} non lus` : item.label}
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[9px] font-semibold transition ${
+                active ? "text-emerald-700" : "text-slate-500"
+              }`}
+            >
+              <span className="relative">
+                <Icon className="h-5 w-5" aria-hidden="true" />
+                {unread > 0 && (
+                  <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">
+                    {unread > 99 ? "99+" : unread}
+                  </span>
+                )}
+              </span>
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </header>
   );
 }

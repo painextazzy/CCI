@@ -13,7 +13,7 @@ export const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email.trim());
 };
 
-// Téléphone : Max 13 chiffres (accepte le + au début ou aucun +)
+// Téléphone : 8 à 13 chiffres, avec un + initial facultatif
 export const isValidPhone = (phone: string): boolean => {
   const cleanPhone = phone.trim();
   const phoneRegex = /^\+?[0-9]{1,13}$/;
@@ -297,7 +297,7 @@ export function Step2({ formData, handleInputChange, errors }: StepProps) {
             required
             value={formData.phone}
             onChange={onChangeWithSanitize}
-            placeholder="Ex. +261340000000"
+            placeholder="Ex. 261340000000 ou +261340000000"
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"
           />
           {errors?.phone && <p className="text-[11px] text-red-500 mt-1">{errors.phone}</p>}
