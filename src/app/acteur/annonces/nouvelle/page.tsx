@@ -13,6 +13,7 @@ import {
   Tag,
   FileText,
 } from "lucide-react";
+import { getApiRoot } from "../../lib/auth";
 
 export default function NouvelleAnnoncePage() {
   const router = useRouter();
@@ -63,9 +64,7 @@ export default function NouvelleAnnoncePage() {
     setError(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
-      const res = await fetch(`${apiUrl}/announcements`, {
+      const res = await fetch(`${getApiRoot()}/announcements`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
