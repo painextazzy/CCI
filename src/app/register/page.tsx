@@ -273,7 +273,7 @@ export default function RegisterPage() {
       />
 
       <main className="w-full max-w-5xl bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(13,148,136,0.15),0_0_1px_1px_rgba(13,148,136,0.06)] border border-teal-100/60 overflow-hidden relative z-10 transition-all duration-300">
-        <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-slate-100 bg-white">
+        <header className="hidden sm:flex items-center justify-between px-6 sm:px-10 py-5 border-b border-slate-100 bg-white">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-teal-600/10 flex items-center justify-center text-teal-600 font-bold">
               <svg

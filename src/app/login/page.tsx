@@ -97,7 +97,7 @@ export default function LoginPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch relative z-10">
           
           {/* SECTION GAUCHE : Photo Asset & Message Brand */}
-          <section className="lg:col-span-5 rounded-[32px] p-8 sm:p-10 flex flex-col justify-between text-white relative overflow-hidden min-h-[520px]">
+          <section className="hidden lg:col-span-5 lg:flex rounded-[32px] p-8 sm:p-10 flex-col justify-between text-white relative overflow-hidden min-h-[520px]">
             
             {/* Image d'arrière-plan avec dégradé d'incrustation */}
             <div className="absolute inset-0 z-0">
