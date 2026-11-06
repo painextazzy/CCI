@@ -14,11 +14,17 @@ import {
   FileText,
 } from "lucide-react";
 import { apiFetch, getApiRoot } from "../../../lib/auth";
+import {
+  dateInputToEndOfDayIso,
+  getMinFutureDateInput,
+  isFutureDateInput,
+} from "../../../lib/date-validation";
 
 export default function NouvelleAnnoncePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const minDeadline = getMinFutureDateInput();
 
   const [formData, setFormData] = useState({
     type: "OFFRE",
@@ -60,6 +66,11 @@ export default function NouvelleAnnoncePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.deadline && !isFutureDateInput(formData.deadline)) {
+      setError("La date limite doit être postérieure à la date actuelle.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -71,9 +82,7 @@ export default function NouvelleAnnoncePage() {
         },
         body: JSON.stringify({
           ...formData,
-          deadline: formData.deadline
-            ? new Date(formData.deadline).toISOString()
-            : undefined,
+          deadline: dateInputToEndOfDayIso(formData.deadline),
         }),
       });
 
@@ -242,6 +251,7 @@ export default function NouvelleAnnoncePage() {
             <input
               type="date"
               name="deadline"
+              min={minDeadline}
               value={formData.deadline}
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-2xl bg-[#FAFAFA] border border-[#F2F2F2] text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-[#6FCF97] transition-colors"

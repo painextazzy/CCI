@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsOptional,
   IsBoolean,
+  Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { CompanyType } from '../../companies/entities/company.entity';
@@ -51,6 +52,10 @@ export class RegisterCompanyDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Le numéro de téléphone est requis' })
+  @Matches(/^(?:03\d{8}|\+?(?!03)\d{8,13})$/, {
+    message:
+      'Un numéro commençant par 03 doit comporter 10 chiffres; les autres numéros doivent comporter 8 à 13 chiffres.',
+  })
   phone: string;
 
   @IsOptional()

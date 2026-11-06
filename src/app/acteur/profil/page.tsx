@@ -16,6 +16,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { apiFetch, getApiRoot } from "../../lib/auth";
+import {
+  dateInputToEndOfDayIso,
+  getMinFutureDateInput,
+  isFutureDateInput,
+} from "../../lib/date-validation";
 import { useAuth } from "../../providers/AuthProvider";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
 
@@ -588,6 +593,10 @@ export default function ActorProfilePage() {
   const save = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingId) return;
+    if (form.deadline && !isFutureDateInput(form.deadline)) {
+      setError("La date limite doit être postérieure à la date actuelle.");
+      return;
+    }
     setIsSaving(true);
     try {
       const r = await apiFetch(`${getApiRoot()}/announcements/${editingId}`, {
@@ -596,9 +605,7 @@ export default function ActorProfilePage() {
         body: JSON.stringify({
           ...form,
           specificLocation: form.specificLocation || null,
-          deadline: form.deadline
-            ? new Date(form.deadline).toISOString()
-            : null,
+          deadline: dateInputToEndOfDayIso(form.deadline) ?? null,
         }),
       });
       if (!r.ok) throw new Error((await r.json()).message || "Échec");
@@ -1168,6 +1175,7 @@ export default function ActorProfilePage() {
                           Date limite
                           <input
                             type="date"
+                            min={getMinFutureDateInput()}
                             value={form.deadline}
                             onChange={(e) =>
                               setForm({ ...form, deadline: e.target.value })

@@ -13,12 +13,14 @@ export const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email.trim());
 };
 
-// Téléphone : 8 à 13 chiffres, avec un + initial facultatif
+// Les numéros malgaches commençant par 03 comportent exactement 10 chiffres.
 export const isValidPhone = (phone: string): boolean => {
   const cleanPhone = phone.trim();
-  const phoneRegex = /^\+?[0-9]{1,13}$/;
   const digitsOnly = cleanPhone.replace(/\D/g, "");
-  return phoneRegex.test(cleanPhone) && digitsOnly.length <= 13 && digitsOnly.length >= 8;
+  if (cleanPhone.startsWith("03")) {
+    return /^03\d{8}$/.test(cleanPhone);
+  }
+  return /^\+?\d{8,13}$/.test(cleanPhone) && digitsOnly.length >= 8;
 };
 
 // NIF et STAT : Exactement 10 chiffres et valeur supérieure à 0
@@ -47,7 +49,7 @@ export const validateStep = (
   if (step === 2) {
     if (!formData.managerName?.trim()) errors.managerName = "Le nom du dirigeant est requis.";
     if (!formData.managerRole) errors.managerRole = "Le rôle est requis.";
-    if (!isValidPhone(formData.phone || "")) errors.phone = "Numéro invalide (max 13 chiffres, + optionnel).";
+    if (!isValidPhone(formData.phone || "")) errors.phone = "Un numéro commençant par 03 doit comporter 10 chiffres; les autres numéros doivent comporter 8 à 13 chiffres (+ optionnel).";
   }
 
   if (step === 3) {
@@ -240,9 +242,11 @@ export function Step2({ formData, handleInputChange, errors }: StepProps) {
     if (name === "managerName") {
       cleanValue = sanitizeText(value);
     } else if (name === "phone") {
-      // Conserve uniquement le + initial et les chiffres (max 13 chiffres)
+      // Limite à 10 chiffres les numéros locaux commençant par 03.
       const hasPlus = value.startsWith("+");
-      const digits = value.replace(/\D/g, "").slice(0, 13);
+      const rawDigits = value.replace(/\D/g, "");
+      const maxDigits = !hasPlus && rawDigits.startsWith("03") ? 10 : 13;
+      const digits = rawDigits.slice(0, maxDigits);
       cleanValue = (hasPlus ? "+" : "") + digits;
     }
 
@@ -296,6 +300,7 @@ export function Step2({ formData, handleInputChange, errors }: StepProps) {
             name="phone"
             required
             value={formData.phone}
+            maxLength={formData.phone.startsWith("03") ? 10 : 14}
             onChange={onChangeWithSanitize}
             placeholder="Ex. 261340000000 ou +261340000000"
             className="w-full px-4 py-2.5 bg-slate-50/60 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-teal-500 outline-none"

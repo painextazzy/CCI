@@ -1,7 +1,23 @@
 
 // src/announcements/dto/create-announcement.dto.ts
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDateString } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateBy,
+} from 'class-validator';
 import { AnnouncementType } from '../entities/announcement.entity';
+
+function isFutureDeadline(value: unknown): boolean {
+  if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) {
+    return false;
+  }
+  const deadlineDate = value.slice(0, 10);
+  const currentDate = new Date().toISOString().slice(0, 10);
+  return deadlineDate > currentDate;
+}
 
 export class CreateAnnouncementDto {
   @IsEnum(AnnouncementType)
@@ -25,6 +41,14 @@ export class CreateAnnouncementDto {
   specificLocation?: string;
 
   @IsDateString()
+  @ValidateBy({
+    name: 'isFutureDeadline',
+    validator: {
+      validate: isFutureDeadline,
+      defaultMessage: () =>
+        'La date limite doit être postérieure à la date actuelle.',
+    },
+  })
   @IsOptional()
   deadline?: string;
 }

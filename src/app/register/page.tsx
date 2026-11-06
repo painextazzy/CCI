@@ -84,7 +84,9 @@ export default function RegisterPage() {
       cleanValue = value.replace(/\D/g, "").slice(0, 10);
     } else if (name === "phone") {
       const hasPlus = value.startsWith("+");
-      const digits = value.replace(/\D/g, "").slice(0, 13);
+      const rawDigits = value.replace(/\D/g, "");
+      const maxDigits = !hasPlus && rawDigits.startsWith("03") ? 10 : 13;
+      const digits = rawDigits.slice(0, maxDigits);
       cleanValue = `${hasPlus ? "+" : ""}${digits}`;
     } else if (name === "companyName" || name === "managerName") {
       cleanValue = value.replace(/[^\p{L}\s]/gu, "").replace(/\s+/g, " ");
