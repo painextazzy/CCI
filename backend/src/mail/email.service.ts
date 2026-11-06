@@ -1,96 +1,123 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+    return entities[character];
+  });
+}
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
   private readonly logger = new Logger(MailService.name);
 
-  constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('MAIL_HOST', 'smtp-relay.brevo.com'),
-      port: this.configService.get<number>('MAIL_PORT', 587),
-      auth: {
-        user: this.configService.get<string>('MAIL_USER'),
-        pass: this.configService.get<string>('MAIL_PASS'),
-      },
-    });
-  }
+  constructor(private configService: ConfigService) {}
 
-  async sendCompanyApprovalEmail(toEmail: string, companyName: string) {
-    const sender = this.configService.get<string>('MAIL_FROM');
-
+  private async sendEmail(
+    toEmail: string,
+    subject: string,
+    html: string,
+    successMessage: string,
+  ): Promise<void> {
     try {
-      await this.transporter.sendMail({
-        from: `"CCI Haute Matsiatra" <${sender}>`,
-        to: toEmail,
-        subject: 'Validation de votre entreprise',
-        html: `
-          <div style="font-family: Arial, sans-serif; color: #333;">
-            <h2>Félicitations !</h2>
-            <p>Votre entreprise <strong>${companyName}</strong> a été approuvée avec succès sur notre plateforme.</p>
-            <p>Vous pouvez dès à présent vous connecter et profiter de nos services.</p>
-            <br/>
-            <p>Cordialement,<br/>L'équipe</p>
-          </div>
-        `,
+      const apiKey = this.configService.get<string>('MAILJET_API_KEY');
+      const apiSecret = this.configService.get<string>('MAILJET_API_SECRET');
+      const sender = this.configService.get<string>('MAIL_FROM');
+
+      if (!apiKey || !apiSecret || !sender) {
+        throw new Error(
+          'MAILJET_API_KEY, MAILJET_API_SECRET et MAIL_FROM doivent être configurés.',
+        );
+      }
+
+      const response = await fetch('https://api.mailjet.com/v3.1/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString('base64')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          Messages: [
+            {
+              From: { Email: sender, Name: 'CCI Haute Matsiatra' },
+              To: [{ Email: toEmail }],
+              Subject: subject,
+              HTMLPart: html,
+            },
+          ],
+        }),
       });
-      this.logger.log(`E-mail d'approbation envoyé avec succès à ${toEmail}`);
+
+      if (!response.ok) {
+        const responseBody = await response.text();
+        throw new Error(
+          `Erreur API Mailjet (${response.status}): ${responseBody}`,
+        );
+      }
+
+      this.logger.log(successMessage);
     } catch (error) {
       this.logger.error(`Erreur lors de l'envoi de l'e-mail à ${toEmail}`, error);
       throw error;
     }
   }
 
-  async sendCompanyRejectionEmail(toEmail: string, companyName: string, reason: string) {
-    const sender = this.configService.get<string>('MAIL_FROM');
-
-    try {
-      await this.transporter.sendMail({
-        from: `"CCI Haute Matsiatra" <${sender}>`,
-        to: toEmail,
-        subject: 'Mise à jour concernant votre demande d\'inscription',
-        html: `
+  async sendCompanyApprovalEmail(toEmail: string, companyName: string) {
+    await this.sendEmail(
+      toEmail,
+      'Validation de votre entreprise',
+      `
           <div style="font-family: Arial, sans-serif; color: #333;">
-            <h2>Suivi de votre inscription</h2>
-            <p>Nous regrettons de vous informer que la demande pour votre entreprise <strong>${companyName}</strong> n'a pas pu être acceptée.</p>
-            <p><strong>Motif :</strong> ${reason}</p>
+            <h2>Félicitations !</h2>
+            <p>Votre entreprise <strong>${escapeHtml(companyName)}</strong> a été approuvée avec succès sur notre plateforme.</p>
+            <p>Vous pouvez dès à présent vous connecter et profiter de nos services.</p>
             <br/>
             <p>Cordialement,<br/>L'équipe</p>
           </div>
         `,
-      });
-      this.logger.log(`E-mail de refus envoyé avec succès à ${toEmail}`);
-    } catch (error) {
-      this.logger.error(`Erreur lors de l'envoi de l'e-mail de refus à ${toEmail}`, error);
-      throw error;
-    }
+      `E-mail d'approbation envoyé avec succès à ${toEmail}`,
+    );
+  }
+
+  async sendCompanyRejectionEmail(toEmail: string, companyName: string, reason: string) {
+    await this.sendEmail(
+      toEmail,
+      'Mise à jour concernant votre demande d\'inscription',
+      `
+          <div style="font-family: Arial, sans-serif; color: #333;">
+            <h2>Suivi de votre inscription</h2>
+            <p>Nous regrettons de vous informer que la demande pour votre entreprise <strong>${escapeHtml(companyName)}</strong> n'a pas pu être acceptée.</p>
+            <p><strong>Motif :</strong> ${escapeHtml(reason)}</p>
+            <br/>
+            <p>Cordialement,<br/>L'équipe</p>
+          </div>
+        `,
+      `E-mail de refus envoyé avec succès à ${toEmail}`,
+    );
   }
 
   async sendPasswordResetOtp(toEmail: string, code: string) {
-    const sender = this.configService.get<string>('MAIL_FROM');
-
-    try {
-      await this.transporter.sendMail({
-        from: `"CCI Haute Matsiatra" <${sender}>`,
-        to: toEmail,
-        subject: 'Code de réinitialisation de votre mot de passe',
-        html: `
+    await this.sendEmail(
+      toEmail,
+      'Code de réinitialisation de votre mot de passe',
+      `
           <div style="font-family: Arial, sans-serif; color: #333;">
             <h2>Réinitialisation de votre mot de passe</h2>
             <p>Voici votre code de confirmation :</p>
-            <p style="font-size: 28px; font-weight: bold; letter-spacing: 6px;">${code}</p>
+            <p style="font-size: 28px; font-weight: bold; letter-spacing: 6px;">${escapeHtml(code)}</p>
             <p>Ce code expire dans 10 minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</p>
             <br/>
             <p>Cordialement,<br/>L'équipe CCI Haute Matsiatra</p>
           </div>
         `,
-      });
-      this.logger.log(`E-mail de réinitialisation envoyé à ${toEmail}`);
-    } catch (error) {
-      this.logger.error(`Erreur lors de l'envoi du code de réinitialisation à ${toEmail}`, error);
-      throw error;
-    }
+      `E-mail de réinitialisation envoyé à ${toEmail}`,
+    );
   }
 }

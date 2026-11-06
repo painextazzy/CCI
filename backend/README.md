@@ -33,9 +33,10 @@ $ npm install
 
 ## E-mails et réinitialisation du mot de passe
 
-Les e-mails de validation, de refus et de réinitialisation sont envoyés via SMTP.
-Configurez `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS` et `MAIL_FROM`
-dans l'environnement du backend.
+Les e-mails de validation, de refus et de réinitialisation sont envoyés via
+l'API Mailjet. Configurez `MAILJET_API_KEY`, `MAILJET_API_SECRET` et `MAIL_FROM`
+dans l'environnement du backend. L'adresse `MAIL_FROM` doit être vérifiée dans
+Mailjet.
 
 Le parcours de réinitialisation utilise les routes publiques suivantes :
 
