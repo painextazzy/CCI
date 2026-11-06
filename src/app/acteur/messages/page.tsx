@@ -1284,7 +1284,7 @@ export default function MessagesPage() {
   )?.contractDetails;
 
   return (
-    <div className="fixed inset-x-0 top-20 bottom-0 overflow-hidden bg-slate-100 p-0 font-sans">
+    <div className="fixed inset-x-0 top-20 bottom-[calc(4rem+env(safe-area-inset-bottom))] overflow-hidden bg-slate-100 p-0 font-sans lg:bottom-0">
       <div
         data-actor-card
         className="relative flex h-full w-full overflow-hidden bg-white"
