@@ -318,7 +318,7 @@ export default function RegisterPage() {
         <div className="px-6 sm:px-10 pb-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
             {/* Stepper Side Navigation */}
-            <aside className="lg:col-span-4 bg-slate-50/70 border border-slate-300 rounded-2xl p-5 shadow-sm h-full flex flex-col justify-between">
+            <aside className="hidden lg:col-span-4 lg:flex bg-slate-50/70 border border-slate-300 rounded-2xl p-5 shadow-sm h-full flex-col justify-between">
               <div className="relative flex-1">
                 <div className="absolute left-4.75 top-5 bottom-5 w-0.5 bg-slate-200 z-0" />
                 <ul className="relative z-10 flex flex-col justify-between h-full space-y-4" role="list">
