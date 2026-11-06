@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   Search,
   Check,
   X,
   Eye,
-  LoaderCircle,
   Building2,
 } from "lucide-react";
 import CompanyDetailModal, { CompanyRequest } from "./CompanyDetailModal";
@@ -61,14 +60,10 @@ export default function PendingCompaniesClient({
   const [rejectingCompany, setRejectingCompany] =
     useState<CompanyRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [processingAction, setProcessingAction] = useState<
-    "approve" | "reject" | null
-  >(null);
   const [detailCompany, setDetailCompany] = useState<CompanyRequest | null>(
     null,
   );
 
-  const actionInProgressRef = useRef(false);
   const safeCompanies = Array.isArray(companies) ? companies : [];
 
   // ─── Filtrage ───
@@ -92,11 +87,19 @@ export default function PendingCompaniesClient({
 
   // ─── Actions API ───
   const handleApprove = async (companyId: string) => {
-    if (actionInProgressRef.current) return;
-    actionInProgressRef.current = true;
-    setProcessingAction("approve");
+    const company = safeCompanies.find((item) => item.id === companyId);
+    if (!company || company.verificationStatus !== "PENDING") return;
+
+    setCompanies((current) =>
+      current.map((item) =>
+        item.id === companyId
+          ? { ...item, verificationStatus: "APPROVED" }
+          : item,
+      ),
+    );
+    setDetailCompany(null);
     setActionError(null);
-    setActionMessage(null);
+    setActionMessage("La demande a été approuvée.");
 
     try {
       const response = await apiFetch(
@@ -117,44 +120,58 @@ export default function PendingCompaniesClient({
         throw new Error(message || "Impossible d’approuver cette demande.");
       }
 
-      setCompanies((current) =>
-        current.map((company) =>
-          company.id === companyId
-            ? { ...company, verificationStatus: "APPROVED" }
-            : company,
-        ),
-      );
-      setActionMessage("La demande a été approuvée.");
-      setDetailCompany(null);
     } catch (error) {
       console.error(error);
+      setCompanies((current) =>
+        current.map((item) =>
+          item.id === companyId &&
+          item.verificationStatus === "APPROVED"
+            ? company
+            : item,
+        ),
+      );
+      setActionMessage(null);
       setActionError(
         error instanceof Error
           ? error.message
           : "Impossible d’approuver cette demande.",
       );
-    } finally {
-      actionInProgressRef.current = false;
-      setProcessingAction(null);
     }
   };
 
   const handleRejectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rejectingCompany || actionInProgressRef.current) return;
-    actionInProgressRef.current = true;
-    setProcessingAction("reject");
+    if (!rejectingCompany) return;
+    const company = rejectingCompany;
+    const reason = rejectionReason.trim();
+    if (!reason) return;
+
+    setCompanies((current) =>
+      current.map((item) =>
+        item.id === company.id
+          ? {
+              ...item,
+              verificationStatus: "REJECTED",
+              rejectionReason: reason,
+            }
+          : item,
+      ),
+    );
+    setRejectingCompany(null);
+    setRejectionReason("");
+    setDetailCompany(null);
     setActionError(null);
-    setActionMessage(null);
+    setActionMessage("La demande a été refusée.");
+
     try {
       const response = await apiFetch(
-        `${getApiRoot()}/companies/${rejectingCompany.id}/status`,
+        `${getApiRoot()}/companies/${company.id}/status`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status: "REJECTED",
-            rejectionReason: rejectionReason.trim(),
+            rejectionReason: reason,
           }),
         },
       );
@@ -165,29 +182,20 @@ export default function PendingCompaniesClient({
           : errorBody?.message;
         throw new Error(message || "Impossible de refuser cette demande.");
       }
-      setCompanies((prev) =>
-        prev.map((company) =>
-          company.id === rejectingCompany.id
-            ? {
-                ...company,
-                verificationStatus: "REJECTED",
-                rejectionReason: rejectionReason.trim(),
-              }
-            : company,
-        ),
-      );
-      setActionMessage("La demande a été refusée.");
-      setRejectingCompany(null);
-      setRejectionReason("");
-      setDetailCompany(null);
     } catch (error) {
       console.error(error);
+      setCompanies((current) =>
+        current.map((item) =>
+          item.id === company.id &&
+          item.verificationStatus === "REJECTED"
+            ? company
+            : item,
+        ),
+      );
+      setActionMessage(null);
       setActionError(
         error instanceof Error ? error.message : "Impossible de refuser.",
       );
-    } finally {
-      actionInProgressRef.current = false;
-      setProcessingAction(null);
     }
   };
 
@@ -340,20 +348,14 @@ export default function PendingCompaniesClient({
                             <>
                               <button
                                 onClick={() => void handleApprove(item.id)}
-                                disabled={processingAction !== null}
                                 className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
                                 title="Accepter"
                               >
-                                {processingAction === "approve" ? (
-                                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5" />
-                                )}
+                                <Check className="h-3.5 w-3.5" />
                                 Accepter
                               </button>
                               <button
                                 onClick={() => setRejectingCompany(item)}
-                                disabled={processingAction !== null}
                                 className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1.5 text-[11px] font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
                                 title="Refuser"
                               >
@@ -405,7 +407,6 @@ export default function PendingCompaniesClient({
           company={detailCompany}
           onClose={() => setDetailCompany(null)}
           onApprove={(id) => void handleApprove(id)}
-          processingAction={processingAction}
           onReject={(c) => {
             setRejectingCompany(c);
             setDetailCompany(null);
@@ -445,19 +446,15 @@ export default function PendingCompaniesClient({
                     setRejectingCompany(null);
                     setRejectionReason("");
                   }}
-                  disabled={processingAction !== null}
                   className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  disabled={processingAction !== null}
                   className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-50"
                 >
-                  {processingAction === "reject"
-                    ? "Refus..."
-                    : "Confirmer le refus"}
+                  Confirmer le refus
                 </button>
               </div>
             </form>
