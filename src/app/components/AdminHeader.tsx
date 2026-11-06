@@ -34,6 +34,9 @@ export default function AdminHeader() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingNotificationCounts, setPendingNotificationCounts] = useState<
+    Record<AdminNotification["type"], number>
+  >({ REGISTRATION: 0, PARTNERSHIP: 0 });
   const [notificationError, setNotificationError] = useState<string | null>(
     null,
   );
@@ -60,16 +63,40 @@ export default function AdminHeader() {
     }
   };
 
-  const navLinks = [
+  const navLinks: {
+    label: string;
+    shortLabel: string;
+    href: string;
+    icon: typeof LayoutDashboard;
+    notificationType?: AdminNotification["type"];
+  }[] = [
     { label: "Vue d'ensemble", shortLabel: "Accueil", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Demandes", shortLabel: "Demandes", href: "/admin/companies/pending", icon: ClipboardList },
+    { label: "Demandes", shortLabel: "Demandes", href: "/admin/companies/pending", icon: ClipboardList, notificationType: "REGISTRATION" },
     { label: "Membres", shortLabel: "Membres", href: "/admin/users", icon: UsersRound },
     { label: "Annonces", shortLabel: "Annonces", href: "/admin/announcements", icon: Megaphone },
-    { label: "Partenariats", shortLabel: "Parten.", href: "/admin/partnerships", icon: Handshake },
-    ...(user?.role === "ADMIN"
-      ? [{ label: "Sauvegarde", shortLabel: "Backup", href: "/admin/backup", icon: DatabaseBackup }]
-      : []),
+    { label: "Partenariats", shortLabel: "Parten.", href: "/admin/partnerships", icon: Handshake, notificationType: "PARTNERSHIP" },
   ];
+
+  const getLinkNotificationCount = (
+    link: (typeof navLinks)[number],
+  ) =>
+    link.notificationType
+      ? pendingNotificationCounts[link.notificationType]
+      : 0;
+
+  const getLinkAriaLabel = (link: (typeof navLinks)[number]) => {
+    const count = getLinkNotificationCount(link);
+    if (count === 0 || !link.notificationType) return link.label;
+    const itemLabel =
+      count === 1
+        ? link.notificationType === "REGISTRATION"
+          ? "nouvelle demande"
+          : "nouvelle demande de partenariat"
+        : link.notificationType === "REGISTRATION"
+          ? "nouvelles demandes"
+          : "nouvelles demandes de partenariat";
+    return `${link.label}, ${count} ${itemLabel}`;
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -110,6 +137,15 @@ export default function AdminHeader() {
 
         const incoming: AdminNotification[] = await response.json();
         if (!isActive) return;
+
+        setPendingNotificationCounts({
+          REGISTRATION: incoming.filter(
+            (notification) => notification.type === "REGISTRATION",
+          ).length,
+          PARTNERSHIP: incoming.filter(
+            (notification) => notification.type === "PARTNERSHIP",
+          ).length,
+        });
 
         const newNotifications = hasLoadedInitialNotifications
           ? incoming.filter((notification) => !knownIds.has(notification.id))
@@ -219,6 +255,16 @@ export default function AdminHeader() {
                 }`}
               >
                 {link.label}
+                {getLinkNotificationCount(link) > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white"
+                  >
+                    {getLinkNotificationCount(link) > 9
+                      ? "9+"
+                      : getLinkNotificationCount(link)}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -354,6 +400,16 @@ export default function AdminHeader() {
                 >
                   Paramètres
                 </Link>
+                {user?.role === "ADMIN" && (
+                  <Link
+                    href="/admin/backup"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 transition text-slate-700 font-medium"
+                  >
+                    <DatabaseBackup className="h-4 w-4" aria-hidden="true" />
+                    Sauvegarde
+                  </Link>
+                )}
                 <div className="border-t border-slate-100 my-1" />
                 {logoutError && (
                   <p role="alert" className="px-4 py-2 text-rose-600">
@@ -379,11 +435,12 @@ export default function AdminHeader() {
           const active =
             pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
+          const notificationCount = getLinkNotificationCount(link);
           return (
             <Link
               key={link.href}
               href={link.href}
-              aria-label={link.label}
+              aria-label={getLinkAriaLabel(link)}
               aria-current={active ? "page" : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[9px] font-semibold transition ${
                 active
@@ -391,10 +448,20 @@ export default function AdminHeader() {
                   : "text-slate-500"
               }`}
             >
-              <Icon
-                className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`}
-                aria-hidden="true"
-              />
+              <span className="relative">
+                <Icon
+                  className={`h-5 w-5 ${active ? "stroke-[2.5]" : ""}`}
+                  aria-hidden="true"
+                />
+                {notificationCount > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white"
+                  >
+                    {notificationCount > 9 ? "9+" : notificationCount}
+                  </span>
+                )}
+              </span>
               <span className="truncate">{link.shortLabel}</span>
             </Link>
           );
