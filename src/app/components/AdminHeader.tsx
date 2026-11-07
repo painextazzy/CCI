@@ -365,10 +365,17 @@ export default function AdminHeader() {
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-2 group"
             >
-              <div className="relative w-9 h-9 rounded-full overflow-hidden ring-2 ring-white shadow-sm">
-                <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center font-bold text-xs">
-                  {currentUser.name.charAt(0)}
-                </div>
+              <div className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-xs font-bold text-white shadow-sm ring-2 ring-white">
+                {user?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.avatarUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  currentUser.name.charAt(0)
+                )}
               </div>
               <svg
                 className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition"

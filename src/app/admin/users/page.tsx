@@ -8,10 +8,14 @@ import {
   Globe,
   Ban,
   CheckCircle2,
+  Eye,
+  Trash2,
+  X,
 } from "lucide-react";
 import CompanyAvatar from "../../components/CompanyAvatar";
 import { apiFetch, getApiRoot } from "../../lib/auth";
 import LoadingSkeleton from "../../components/LoadingSkeleton";
+import { useAuth } from "../../providers/AuthProvider";
 
 interface Member {
   id: string;
@@ -24,13 +28,27 @@ interface Member {
     companyName: string;
     logoUrl?: string | null;
     managerName: string;
+    managerRole: string;
     phone: string;
     sector: string;
+    sectorOther?: string | null;
     address: string;
+    nif: string;
+    stat: string;
+    website?: string | null;
     needsDescription: string;
     verificationStatus: "APPROVED";
   };
   avatarUrl?: string | null;
+}
+
+type ApiError = { message?: string | string[] };
+
+async function getErrorMessage(response: Response, fallback: string) {
+  const body = (await response.json()) as ApiError;
+  return Array.isArray(body.message)
+    ? body.message.join(", ")
+    : body.message || fallback;
 }
 
 type CompanyType = Member["company"]["companyType"];
@@ -42,6 +60,7 @@ const companyTypeLabels: Record<CompanyType, string> = {
 };
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSector, setSelectedSector] = useState("ALL");
   const [selectedLocation, setSelectedLocation] = useState("ALL");
@@ -50,6 +69,10 @@ export default function AdminUsersPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [processingUserId, setProcessingUserId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -117,6 +140,39 @@ export default function AdminUsersPage() {
       );
     } finally {
       setProcessingUserId(null);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!memberToDelete || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await apiFetch(
+        `${getApiRoot()}/users/${memberToDelete.id}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        throw new Error(
+          await getErrorMessage(response, "Impossible de supprimer ce compte."),
+        );
+      }
+
+      setUsers((currentUsers) =>
+        currentUsers.filter((currentUser) => currentUser.id !== memberToDelete.id),
+      );
+      setSelectedMember(null);
+      setMemberToDelete(null);
+    } catch (error) {
+      console.error("Erreur lors de la suppression du membre", error);
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue lors de la suppression du compte.",
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -283,7 +339,15 @@ export default function AdminUsersPage() {
                 </div>
 
                 {/* ── ACTION ── */}
-                <div className="mt-2 flex items-center justify-end border-t border-slate-100 pt-3">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMember(user)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                  >
+                    <Eye className="h-3.5 w-3.5" strokeWidth={2} />
+                    Voir le profil
+                  </button>
                   <button
                     type="button"
                     onClick={() => void handleToggleStatus(user)}
@@ -315,6 +379,169 @@ export default function AdminUsersPage() {
           <p className="text-slate-400 text-sm font-medium">
             Aucun membre ne correspond à votre recherche.
           </p>
+        </div>
+      )}
+
+      {selectedMember && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="member-profile-title"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"
+          >
+            <header className="flex items-start gap-4">
+              <CompanyAvatar
+                src={selectedMember.company.logoUrl || selectedMember.avatarUrl}
+                name={selectedMember.company.companyName}
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-100"
+                initialsClassName="text-lg font-bold text-emerald-700"
+              />
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="member-profile-title"
+                  className="break-words text-xl font-extrabold text-slate-900"
+                >
+                  {selectedMember.company.companyName}
+                </h2>
+                <p className="mt-1 break-all text-sm text-slate-500">
+                  {selectedMember.email}
+                </p>
+                <span
+                  className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    selectedMember.isActive
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {selectedMember.isActive ? "Compte actif" : "Compte suspendu"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMember(null)}
+                aria-label="Fermer le profil"
+                className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+
+            <dl className="mt-6 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+              {[
+                ["Responsable", selectedMember.company.managerName],
+                ["Fonction", selectedMember.company.managerRole],
+                [
+                  "Type d'entreprise",
+                  companyTypeLabels[selectedMember.company.companyType],
+                ],
+                [
+                  "Secteur d'activité",
+                  selectedMember.company.sectorOther ||
+                    getSectorLabel(selectedMember.company.sector),
+                ],
+                ["Téléphone", selectedMember.company.phone],
+                ["Adresse", selectedMember.company.address],
+                ["NIF", selectedMember.company.nif],
+                ["STAT", selectedMember.company.stat],
+                ["Site web", selectedMember.company.website],
+                ["Inscription", new Date(selectedMember.createdAt).toLocaleDateString("fr-FR")],
+                ["Vérification", "Approuvée"],
+              ].map(([label, value]) => (
+                <div key={label} className="min-w-0 border-b border-slate-100 pb-3">
+                  <dt className="text-xs font-semibold text-slate-400">
+                    {label}
+                  </dt>
+                  <dd className="mt-1 break-words text-sm font-medium text-slate-800">
+                    {value || "Non renseigné"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            <div className="mt-5">
+              <h3 className="text-xs font-semibold text-slate-400">
+                Besoins et description
+              </h3>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">
+                {selectedMember.company.needsDescription || "Non renseigné"}
+              </p>
+            </div>
+
+            <footer className="mt-6 flex flex-col-reverse justify-between gap-3 border-t border-slate-100 pt-4 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setSelectedMember(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Fermer
+              </button>
+              {currentUser?.role === "ADMIN" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setMemberToDelete(selectedMember);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  Supprimer le compte
+                </button>
+              )}
+            </footer>
+          </section>
+        </div>
+      )}
+
+      {memberToDelete && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 p-4">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-member-title"
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+          >
+            <h2
+              id="delete-member-title"
+              className="text-lg font-bold text-slate-900"
+            >
+              Supprimer ce compte ?
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Le compte de {memberToDelete.company.companyName}, son entreprise
+              et les annonces et échanges associés seront supprimés. Un compte
+              lié à un contrat accepté ne peut pas être supprimé. Cette action
+              est définitive.
+            </p>
+            {deleteError && (
+              <p role="alert" className="mt-4 text-sm text-rose-700">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-6 flex flex-col-reverse justify-end gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isDeleting) return;
+                  setMemberToDelete(null);
+                  setDeleteError(null);
+                }}
+                disabled={isDeleting}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteMember()}
+                disabled={isDeleting}
+                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isDeleting ? "Suppression..." : "Confirmer la suppression"}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </div>

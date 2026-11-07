@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { apiFetch, getApiRoot } from "../../lib/auth";
+import { useEffect, useRef, useState } from "react";
+import { apiFetch, getApiRoot, type AuthUser } from "../../lib/auth";
 import { useAuth } from "../../providers/AuthProvider";
 
 type ApiError = { message?: string | string[] };
@@ -17,7 +17,12 @@ const inputClassName =
   "mt-1.5 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
 
 export default function AdminSettingsPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoSuccess, setPhotoSuccess] = useState<string | null>(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
   const [password, setPassword] = useState({
     currentPassword: "",
     newPassword: "",
@@ -34,6 +39,79 @@ export default function AdminSettingsPage() {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [adminSuccess, setAdminSuccess] = useState<string | null>(null);
   const [adminSaving, setAdminSaving] = useState(false);
+  const photoPreviewUrl = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl.current) URL.revokeObjectURL(photoPreviewUrl.current);
+    };
+  }, []);
+
+  const updatePhotoPreview = (file?: File) => {
+    if (photoPreviewUrl.current) URL.revokeObjectURL(photoPreviewUrl.current);
+    photoPreviewUrl.current = file ? URL.createObjectURL(file) : null;
+    setPhotoPreview(photoPreviewUrl.current);
+  };
+
+  const handlePhotoChange = (file?: File) => {
+    setPhotoError(null);
+    setPhotoSuccess(null);
+    setPhoto(null);
+    updatePhotoPreview();
+    if (!file) {
+      return;
+    }
+    if (
+      !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(
+        file.type,
+      )
+    ) {
+      setPhotoError("Choisissez une image JPEG, PNG, WebP ou GIF.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError("La photo ne doit pas dépasser 5 Mo.");
+      return;
+    }
+    setPhoto(file);
+    updatePhotoPreview(file);
+  };
+
+  const handlePhotoSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!photo) return;
+    setPhotoSaving(true);
+    setPhotoError(null);
+    setPhotoSuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("photo", photo);
+      const response = await apiFetch(`${getApiRoot()}/auth/profile-photo`, {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error(
+          await getErrorMessage(response, "La mise à jour de la photo a échoué."),
+        );
+      }
+      const result = (await response.json()) as { avatarUrl: string };
+      if (!user) throw new Error("Votre session n'est plus disponible.");
+      setUser({ ...user, avatarUrl: result.avatarUrl } satisfies AuthUser);
+      setPhoto(null);
+      updatePhotoPreview();
+      setPhotoSuccess("Votre photo de profil a été mise à jour.");
+    } catch (cause) {
+      setPhotoError(
+        cause instanceof Error
+          ? cause.message
+          : "La mise à jour de la photo a échoué.",
+      );
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
 
   const handlePasswordSubmit = async (
     event: React.FormEvent<HTMLFormElement>,
@@ -157,6 +235,58 @@ export default function AdminSettingsPage() {
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+        <h2 className="text-base font-bold text-slate-900">Photo de profil</h2>
+        <form
+          onSubmit={handlePhotoSubmit}
+          className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center"
+        >
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-100 text-xl font-bold text-emerald-700">
+            {photoPreview || user?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photoPreview || user?.avatarUrl || ""}
+                alt="Photo de profil"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              (user?.email || "CC").slice(0, 2).toUpperCase()
+            )}
+          </div>
+          <div className="flex-1 space-y-3">
+            <label className="block text-sm font-medium text-slate-700">
+              Choisir une photo (JPEG, PNG, WebP ou GIF, 5 Mo maximum)
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(event) => {
+                  handlePhotoChange(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+                className="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
+              />
+            </label>
+            {photoError && (
+              <p role="alert" className="text-sm text-rose-700">
+                {photoError}
+              </p>
+            )}
+            {photoSuccess && (
+              <p role="status" className="text-sm text-emerald-700">
+                {photoSuccess}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={!photo || photoSaving}
+              className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {photoSaving ? "Enregistrement..." : "Enregistrer la photo"}
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
