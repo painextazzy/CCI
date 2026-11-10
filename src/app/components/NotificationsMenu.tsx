@@ -8,9 +8,10 @@ import { useInterestsNotifications } from "../providers/InterestsNotificationsPr
 
 export default function NotificationsMenu() {
   const {
-    unreadCount,
+    unreadNotificationCount,
     latestInterest,
     latestStatusUpdate,
+    latestAnnouncement,
     connectionError,
     clearUnread,
   } = useInterestsNotifications();
@@ -39,8 +40,15 @@ export default function NotificationsMenu() {
   }, [isOpen]);
 
   const notifications = [
+    latestAnnouncement && {
+      id: latestAnnouncement.id,
+      href: "/acteur/opportunites",
+      title: "Une annonce concerne votre secteur",
+      description: `${latestAnnouncement.companyName} a publié « ${latestAnnouncement.title} » dans votre secteur (${latestAnnouncement.sector}).`,
+    },
     latestStatusUpdate && {
       id: latestStatusUpdate.id,
+      href: "/acteur/demandes",
       title:
         latestStatusUpdate.status === "ACCEPTED"
           ? "Demande acceptée"
@@ -57,11 +65,13 @@ export default function NotificationsMenu() {
     },
     latestInterest && {
       id: latestInterest.id,
+      href: "/acteur/demandes",
       title: "Nouvelle demande d’intérêt",
       description: `${latestInterest.senderCompany.companyName} manifeste son intérêt pour « ${latestInterest.announcement.title} ».`,
     },
-  ].filter((notification): notification is NonNullable<typeof notification> =>
-    Boolean(notification),
+  ].filter(
+    (notification): notification is NonNullable<typeof notification> =>
+      Boolean(notification),
   );
 
   return (
@@ -73,8 +83,8 @@ export default function NotificationsMenu() {
           clearUnread();
         }}
         aria-label={
-          unreadCount > 0
-            ? `Notifications (${unreadCount} non lue${unreadCount > 1 ? "s" : ""})`
+          unreadNotificationCount > 0
+            ? `Notifications (${unreadNotificationCount} non lue${unreadNotificationCount > 1 ? "s" : ""})`
             : "Notifications"
         }
         aria-expanded={isOpen}
@@ -83,9 +93,9 @@ export default function NotificationsMenu() {
         className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200"
       >
         <HiOutlineBell className="h-6 w-6" />
-        {unreadCount > 0 && (
+        {unreadNotificationCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
+            {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
           </span>
         )}
       </button>
@@ -126,7 +136,7 @@ export default function NotificationsMenu() {
               {notifications.map((notification) => (
                 <li key={notification.id}>
                   <Link
-                    href="/acteur/demandes"
+                    href={notification.href}
                     onClick={() => setIsOpen(false)}
                     className="block border-b border-slate-100 px-4 py-3 transition last:border-b-0 hover:bg-slate-50"
                   >

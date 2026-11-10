@@ -54,11 +54,22 @@ export interface MessageNotification {
   };
 }
 
+export interface SectorAnnouncementNotification {
+  id: string;
+  title: string;
+  category: string;
+  createdAt: string;
+  companyName: string;
+  sector: string;
+}
+
 type InterestsNotificationsValue = {
   unreadCount: number;
+  unreadNotificationCount: number;
   unreadMessageCount: number;
   latestInterest: InterestNotification | null;
   latestStatusUpdate: InterestNotification | null;
+  latestAnnouncement: SectorAnnouncementNotification | null;
   latestMessageNotification: MessageNotification | null;
   connectionError: string | null;
   clearUnread: () => void;
@@ -78,6 +89,9 @@ export function InterestsNotificationsProvider({
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const announcementToastTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const statusToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -86,15 +100,20 @@ export function InterestsNotificationsProvider({
   );
   const activeConversationIdRef = useRef<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadAnnouncementCount, setUnreadAnnouncementCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [latestInterest, setLatestInterest] =
     useState<InterestNotification | null>(null);
   const [latestStatusUpdate, setLatestStatusUpdate] =
     useState<InterestNotification | null>(null);
+  const [latestAnnouncement, setLatestAnnouncement] =
+    useState<SectorAnnouncementNotification | null>(null);
   const [latestMessageNotification, setLatestMessageNotification] =
     useState<MessageNotification | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [toast, setToast] = useState<InterestNotification | null>(null);
+  const [announcementToast, setAnnouncementToast] =
+    useState<SectorAnnouncementNotification | null>(null);
   const [statusToast, setStatusToast] =
     useState<InterestNotification | null>(null);
   const [messageToast, setMessageToast] =
@@ -103,14 +122,22 @@ export function InterestsNotificationsProvider({
   useEffect(() => {
     pathnameRef.current = pathname;
     if (pathname === "/acteur/demandes") {
+      // Route changes mark the matching notification section as read.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUnreadCount(0);
+    }
+    if (pathname === "/acteur/opportunites") {
+      setUnreadAnnouncementCount(0);
     }
     if (pathname === "/acteur/messages") {
       setUnreadMessageCount(0);
     }
   }, [pathname]);
 
-  const clearUnread = useCallback(() => setUnreadCount(0), []);
+  const clearUnread = useCallback(() => {
+    setUnreadCount(0);
+    setUnreadAnnouncementCount(0);
+  }, []);
   const decrementUnreadMessages = useCallback((count: number) => {
     if (count > 0) {
       setUnreadMessageCount((current) => Math.max(0, current - count));
@@ -175,6 +202,23 @@ export function InterestsNotificationsProvider({
       }
     });
     socket.on(
+      "sectorAnnouncementReceived",
+      (announcement: SectorAnnouncementNotification) => {
+        setLatestAnnouncement(announcement);
+        setAnnouncementToast(announcement);
+        if (announcementToastTimerRef.current) {
+          clearTimeout(announcementToastTimerRef.current);
+        }
+        announcementToastTimerRef.current = setTimeout(
+          () => setAnnouncementToast(null),
+          7000,
+        );
+        if (pathnameRef.current !== "/acteur/opportunites") {
+          setUnreadAnnouncementCount((count) => count + 1);
+        }
+      },
+    );
+    socket.on(
       "newMessageNotification",
       (notification: MessageNotification) => {
         if (
@@ -198,6 +242,9 @@ export function InterestsNotificationsProvider({
     return () => {
       socket.disconnect();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (announcementToastTimerRef.current) {
+        clearTimeout(announcementToastTimerRef.current);
+      }
       if (statusToastTimerRef.current) {
         clearTimeout(statusToastTimerRef.current);
       }
@@ -219,6 +266,13 @@ export function InterestsNotificationsProvider({
     setStatusToast(null);
   };
 
+  const dismissAnnouncementToast = () => {
+    if (announcementToastTimerRef.current) {
+      clearTimeout(announcementToastTimerRef.current);
+    }
+    setAnnouncementToast(null);
+  };
+
   const dismissMessageToast = () => {
     if (messageToastTimerRef.current) {
       clearTimeout(messageToastTimerRef.current);
@@ -230,9 +284,11 @@ export function InterestsNotificationsProvider({
     <InterestsNotificationsContext.Provider
       value={{
         unreadCount,
+        unreadNotificationCount: unreadCount + unreadAnnouncementCount,
         unreadMessageCount,
         latestInterest,
         latestStatusUpdate,
+        latestAnnouncement,
         latestMessageNotification,
         connectionError,
         clearUnread,
@@ -245,7 +301,8 @@ export function InterestsNotificationsProvider({
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-5 right-5 z-[100] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-xl"
+          style={{ bottom: "1.25rem" }}
+          className="fixed right-5 z-[100] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-xl"
         >
           <div className="flex items-start gap-3 p-4">
             <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
@@ -276,13 +333,54 @@ export function InterestsNotificationsProvider({
           </div>
         </div>
       )}
+      {announcementToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{ bottom: `${1.25 + (toast ? 7.25 : 0)}rem` }}
+          className="fixed right-5 z-[101] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-xl"
+        >
+          <div className="flex items-start gap-3 p-4">
+            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500" />
+            <Link
+              href="/acteur/opportunites"
+              onClick={() => {
+                dismissAnnouncementToast();
+                setUnreadAnnouncementCount(0);
+              }}
+              className="min-w-0 flex-1"
+            >
+              <p className="text-sm font-bold text-slate-900">
+                Une annonce concerne votre secteur
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                {announcementToast.companyName} a publié «{" "}
+                {announcementToast.title} » dans votre secteur (
+                {announcementToast.sector}).
+              </p>
+              <span className="mt-2 inline-block text-xs font-semibold text-sky-700">
+                Voir l’annonce
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={dismissAnnouncementToast}
+              aria-label="Fermer la notification d’annonce"
+              className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {statusToast && (
         <div
           role="status"
           aria-live="polite"
+          style={{
+            bottom: `${1.25 + (toast ? 7.25 : 0) + (announcementToast ? 7.25 : 0)}rem`,
+          }}
           className={`fixed right-5 z-[101] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border bg-white shadow-xl ${
-            toast ? "bottom-[8.5rem]" : "bottom-5"
-          } ${
             statusToast.status === "ACCEPTED"
               ? "border-emerald-200"
               : "border-rose-200"
@@ -340,13 +438,15 @@ export function InterestsNotificationsProvider({
         <div
           role="status"
           aria-live="polite"
-          className={`fixed right-5 z-[102] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-xl ${
-            toast && statusToast
-              ? "bottom-[15.5rem]"
-              : toast || statusToast
-                ? "bottom-[8.5rem]"
-                : "bottom-5"
-          }`}
+          style={{
+            bottom: `${
+              1.25 +
+              (toast ? 7.25 : 0) +
+              (announcementToast ? 7.25 : 0) +
+              (statusToast ? 7.25 : 0)
+            }rem`,
+          }}
+          className="fixed right-5 z-[102] w-[min(24rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-xl"
         >
           <div className="flex items-start gap-3 p-4">
             <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500" />

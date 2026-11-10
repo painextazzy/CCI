@@ -20,7 +20,7 @@ import {
 
 interface AdminNotification {
   id: string;
-  type: "REGISTRATION" | "PARTNERSHIP";
+  type: "REGISTRATION" | "ANNOUNCEMENT";
   companyName: string;
   subject: string | null;
   createdAt: string;
@@ -36,7 +36,7 @@ export default function AdminHeader() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingNotificationCounts, setPendingNotificationCounts] = useState<
     Record<AdminNotification["type"], number>
-  >({ REGISTRATION: 0, PARTNERSHIP: 0 });
+  >({ REGISTRATION: 0, ANNOUNCEMENT: 0 });
   const [notificationError, setNotificationError] = useState<string | null>(
     null,
   );
@@ -73,8 +73,8 @@ export default function AdminHeader() {
     { label: "Vue d'ensemble", shortLabel: "Accueil", href: "/admin/dashboard", icon: LayoutDashboard },
     { label: "Demandes", shortLabel: "Demandes", href: "/admin/companies/pending", icon: ClipboardList, notificationType: "REGISTRATION" },
     { label: "Membres", shortLabel: "Membres", href: "/admin/users", icon: UsersRound },
-    { label: "Annonces", shortLabel: "Annonces", href: "/admin/announcements", icon: Megaphone },
-    { label: "Partenariats", shortLabel: "Parten.", href: "/admin/partnerships", icon: Handshake, notificationType: "PARTNERSHIP" },
+    { label: "Annonces", shortLabel: "Annonces", href: "/admin/announcements", icon: Megaphone, notificationType: "ANNOUNCEMENT" },
+    { label: "Partenariats", shortLabel: "Parten.", href: "/admin/partnerships", icon: Handshake },
   ];
 
   const getLinkNotificationCount = (
@@ -91,10 +91,10 @@ export default function AdminHeader() {
       count === 1
         ? link.notificationType === "REGISTRATION"
           ? "nouvelle demande"
-          : "nouvelle demande de partenariat"
+          : "nouvelle annonce"
         : link.notificationType === "REGISTRATION"
           ? "nouvelles demandes"
-          : "nouvelles demandes de partenariat";
+        : "nouvelles annonces";
     return `${link.label}, ${count} ${itemLabel}`;
   };
 
@@ -142,8 +142,8 @@ export default function AdminHeader() {
           REGISTRATION: incoming.filter(
             (notification) => notification.type === "REGISTRATION",
           ).length,
-          PARTNERSHIP: incoming.filter(
-            (notification) => notification.type === "PARTNERSHIP",
+          ANNOUNCEMENT: incoming.filter(
+            (notification) => notification.type === "ANNOUNCEMENT",
           ).length,
         });
 
@@ -198,15 +198,15 @@ export default function AdminHeader() {
   const notificationHref = (notification: AdminNotification) =>
     notification.type === "REGISTRATION"
       ? "/admin/companies/pending"
-      : "/admin/partnerships";
+      : "/admin/announcements";
   const notificationTitle = (notification: AdminNotification) =>
     notification.type === "REGISTRATION"
       ? "Nouvelle demande d'inscription"
-      : "Nouvelle demande de partenariat";
+      : "Nouvelle annonce";
   const notificationDescription = (notification: AdminNotification) =>
     notification.type === "REGISTRATION"
       ? notification.companyName
-      : `${notification.companyName} : ${notification.subject ?? "Nouvelle annonce de partenariat"}`;
+      : `${notification.companyName} : ${notification.subject ?? "Nouvelle annonce"}`;
 
   const dismissToast = () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
